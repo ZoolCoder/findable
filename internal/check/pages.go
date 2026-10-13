@@ -172,12 +172,15 @@ func (c *run) sitemap() {
 			c.add("sitemap.url.host", Error, "", "the sitemap lists URLs on another host", "List only URLs on "+c.site.Base.String()+".")
 		case !strings.HasPrefix(u, c.site.Base.Scheme+"://"+c.site.Base.Host):
 			c.add("sitemap.url.host", Warn, lp, "the sitemap URL is not on the canonical origin "+c.site.Base.String(), "List each page by its canonical URL.")
-		case !c.site.Live:
-			p, ok := c.site.Page(lp)
-			if !ok {
+		default:
+			if p, ok := c.site.Page(lp); ok {
+				if !c.canonicalSelf(p) {
+					c.add("sitemap.url.canonical", Warn, lp, "the sitemap lists a page whose canonical is another URL", "List the canonical URL instead.")
+				}
+			} else if why, failed := c.site.Failed[lp]; failed {
+				c.add("sitemap.url.status", Error, lp, "the sitemap lists a URL that "+why, "List only URLs that answer 200 with the page itself: drop it, or list where it redirects.")
+			} else if !c.site.Live {
 				c.add("sitemap.url.unknown", Error, lp, "the sitemap lists a path with no page", "Drop it from the sitemap or build the page.")
-			} else if !c.canonicalSelf(p) {
-				c.add("sitemap.url.canonical", Warn, lp, "the sitemap lists a page whose canonical is another URL", "List the canonical URL instead.")
 			}
 		}
 	}
@@ -185,6 +188,17 @@ func (c *run) sitemap() {
 		if !listed[p.Path] {
 			c.add("sitemap.page.missing", Warn, p.Path, "an indexable page is not in the sitemap", "Add it to the sitemap.")
 		}
+	}
+}
+
+// crawl says what a live crawl could not read, so a clean report is not
+// mistaken for a full one.
+func (c *run) crawl() {
+	for _, p := range c.site.Skipped {
+		c.add("crawl.skipped", Info, p, "robots.txt keeps findable out, so the page was not checked", "Allow findable in robots.txt, or audit the built directory instead.")
+	}
+	if c.site.Truncated {
+		c.add("crawl.truncated", Info, "", fmt.Sprintf("the crawl stopped at max_pages (%d pages); the rest was not checked", len(c.site.Pages)), "Raise max_pages, or audit the built directory.")
 	}
 }
 
