@@ -1,0 +1,65 @@
+# Antora playbook for the findable documentation site.
+#
+# Build locally with:
+#   make docs
+# then open build/site/index.html. `npm run docs:local` builds against a
+# checkout of zc-supplemental-ui in ~/Developer/Framework/kits instead of the
+# release.
+#
+# The content source is this working tree rather than a remote URL, so a local
+# build documents what is checked out right now instead of what was last pushed.
+antora:
+  extensions:
+    # Builds a client-side lunr index at generation time; the UI shows its
+    # search field when the extension is loaded.
+    - require: '@antora/lunr-extension'
+      index_latest_only: true
+    # Assembles every page into one PDF, configured by antora-assembler.yml.
+    - require: '@antora/pdf-extension'
+    # From zc-supplemental-ui: "Last updated" from git, a Markdown copy of
+    # each page plus llms.txt, and a link-preview card per page.
+    - zc-supplemental-ui/extensions/last-updated
+    - zc-supplemental-ui/extensions/llms
+    - zc-supplemental-ui/extensions/og-image
+
+site:
+  title: findable
+  # Required for canonical URLs, og:url and sitemap generation.
+  url: https://zoolcoder.github.io/findable
+  start_page: findable::index.adoc
+  robots: allow
+
+content:
+  sources:
+    - url: .
+      start_path: docs
+      branches: HEAD
+      edit_url: 'https://github.com/zoolcoder/findable/edit/develop/{path}'
+
+ui:
+  bundle:
+    # The ZoolCoder docs UI, the same design as the admin page. Pinned to a
+    # release so a change to the bundle reaches this site only by a bump here.
+    url: https://github.com/zoolcoder/zc-supplemental-ui/releases/download/v0.2.1/ui-bundle.zip
+
+asciidoc:
+  extensions:
+    - '@asciidoctor/tabs'
+  attributes:
+    experimental: ''
+    idprefix: ''
+    idseparator: '-'
+    tabsize: 2
+    go-version: '1.26'
+    source-highlighter: highlight.js
+    # Read by the UI bundle: header buttons, footer and link previews.
+    page-zc-repo: https://github.com/zoolcoder/findable
+    page-zc-pdf: findable/_exports/index.pdf
+    page-zc-tagline: Documentation
+    page-zc-site: https://zoolcoder.com/
+    page-zc-site-name: zoolcoder.com
+    page-zc-owner: ZoolCoder
+    page-zc-license: MIT licensed
+
+output:
+  dir: ./build/site

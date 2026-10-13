@@ -1,0 +1,42 @@
+= Checks
+:description: Every check findable runs, by id.
+
+Every finding has a check id, a severity, the pages it was seen on and a fix.
+`ignore:` in the config skips a check by id prefix.
+
+[cols="1,3"]
+|===
+| Id prefix | What it looks at
+
+| `meta.title.*`, `meta.description.*` | Missing, too long or duplicated across pages.
+| `meta.h1.*`, `meta.lang.missing` | One visible `<h1>`; a `lang` on `<html>`.
+| `meta.canonical.*` | Missing, relative, or on another host.
+| `index.noindex`, `index.noindex.listed` | A page that asks not to be indexed but is not listed in `noindex:`; a noindex page in the sitemap.
+| `links.broken`, `links.orphan` | Internal links to pages that do not exist; pages nothing links to.
+| `img.alt.missing`, `social.og.missing` | Images without `alt`; no share card.
+| `content.thin` | Fewer words than `min_words`.
+| `sitemap.*` | Missing or invalid; URLs on another host, unknown, not canonical; indexable pages left out.
+| `robots.*` | Missing, blocking everything, or not naming the sitemap.
+| `hreflang.*` | With two or more locales: missing, invalid, not reciprocal, no self link, no `x-default`.
+| `schema.invalid.json`, `schema.expected` | JSON-LD that does not parse; types the config requires on a path.
+| `schema.organization.fields`, `schema.localbusiness.fields` | Name, url, logo; address and telephone.
+| `schema.jobposting.*` | Required and recommended fields, a `validThrough` already past (informational: it is one way Google accepts to close a job), JobPosting on a listing page.
+| `schema.breadcrumb.*` | Items and positions.
+| `local.*` | No Organization or LocalBusiness anywhere; a business name or phone in the JSON-LD that differs from `business:`.
+| `ai.crawler.*` | robots.txt against `ai_crawlers:` for each kind of AI crawler.
+| `ai.llms.*` | llms.txt missing, malformed, or linking to pages that do not exist.
+|===
+
+== AI crawlers
+
+[cols="1,3"]
+|===
+| Kind | User agents
+
+| `search` | OAI-SearchBot, Claude-SearchBot, PerplexityBot
+| `user` | ChatGPT-User, Claude-User, Perplexity-User
+| `training` | GPTBot, ClaudeBot, CCBot, Google-Extended, Applebot-Extended, Meta-ExternalAgent, Bytespider
+|===
+
+robots.txt is read as RFC 9309 says: a group naming the agent replaces the `*`
+group, and the longest matching rule wins.

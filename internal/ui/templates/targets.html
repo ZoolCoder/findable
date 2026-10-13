@@ -1,0 +1,23 @@
+{{template "ts-top" .}}
+<div class="top">
+  <div><h1 class="pg">{{$.T "Targets"}}</h1><p class="sub">{{$.T "what the config declares, and what is live right now"}}</p></div>
+</div>
+{{if .ConfigErr}}<p class="callout bad"><b>{{$.T "config"}}</b> <span class="err">{{.ConfigErr}}</span></p>{{end}}
+<section class="panel">
+  <div class="tw"><table>
+    <thead><tr><th>{{$.T "Target"}}</th><th>{{$.T "Provider"}}</th><th>{{$.T "Live"}}</th><th>{{$.T "Last plan"}}</th></tr></thead>
+    <tbody>
+    {{range .Rows}}
+      <tr>
+        <td><a class="name" href="/targets/{{.Name}}">{{.Name}}</a></td>
+        <td><span class="chip plain">{{.Provider}}</span></td>
+        <td class="wrap">{{if .Status.Error}}<span class="err">{{.Status.Error}}</span>{{else}}<span class="muted">{{.Status.Summary}}</span>{{end}}</td>
+        <td>{{with .Last}}{{if .Err}}<span class="chip bad">{{$.T "failed"}}</span>{{else if .Plan.Empty}}<span class="chip on">{{$.T "in sync"}}</span>{{else}}<span class="chip warn">{{len .Plan.Actions}} {{$.T "changes"}}</span>{{end}}{{else}}<span class="muted">{{$.T "not planned yet"}}</span>{{end}}</td>
+      </tr>
+    {{else}}
+      <tr><td colspan="4" class="empty">{{$.T "the config declares no targets"}}</td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+</section>
+{{template "ts-bottom" .}}

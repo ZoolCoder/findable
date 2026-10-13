@@ -1,0 +1,54 @@
+# findable config. Copy to findable.yaml next to the site, then run
+# `findable audit` and `findable plan`. Paths are relative to this file.
+version: 1
+
+targets:
+  - name: site
+    provider: site
+    # A built directory, checked offline. Or url: https://example.com to
+    # crawl the live site instead (path and url are exclusive).
+    path: dist
+    # The public origin the built pages are served at. Required with path.
+    base_url: https://example.com
+    # Where apply writes robots.txt and llms.txt: the static directory the
+    # build copies unchanged, never the build output itself.
+    write_dir: public
+    # max_pages: 300        # crawl limit with url
+
+    # The first locale is the default and has no URL prefix; the others live
+    # under /<locale>/. Two or more turn on the hreflang checks.
+    locales: [en, ro]
+
+    # Pages meant to stay out of search. * matches one path segment, /**
+    # any depth. Locale prefixes are matched too.
+    noindex: [/admin/**, /account/**]
+
+    # Structured data each kind of page must carry.
+    schema:
+      - path: /
+        types: [Organization]
+      - path: /jobs/*
+        types: [JobPosting, BreadcrumbList]
+
+    # Checks the business name and phones in the JSON-LD (NAP).
+    business:
+      name: Example Recruiting
+      phones: ["+40 21 000 0000"]
+
+    # What robots.txt tells AI crawlers: allow, block, or any (no opinion).
+    # Defaults: search allow, user allow, training any. Apply writes a block
+    # for every kind set to block. This is the owner's decision.
+    # ai_crawlers:
+    #   training: block
+
+    # Generate llms.txt from the indexable pages. Leave it out when the site
+    # has a hand-written llms.txt: apply would overwrite it.
+    # llms_txt:
+    #   title: Example Recruiting
+    #   summary: Recruitment agency placing workers across Europe.
+    #   sections:
+    #     - {name: Jobs, path: /jobs/**}
+    #     - {name: News, path: /news/**, optional: true}
+
+    # min_words: 150        # content.thin floor; -1 turns it off
+    # ignore: [social.og]   # check id prefixes the owner decided to skip

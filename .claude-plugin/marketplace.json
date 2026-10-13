@@ -1,0 +1,26 @@
+{
+  "name": "findable",
+  "owner": {
+    "name": "Abdallah Emad (ZoolCoder)",
+    "url": "https://github.com/zoolcoder"
+  },
+  "metadata": {
+    "description": "findable: SEO and AI-search reach for websites, with a deterministic audit and agent skills.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "findable",
+      "source": "./",
+      "description": "Audit a site for search and AI search, fix findings in the source, and plan reach: schema, international, local, off-site, content, conversion, measurement, launch.",
+      "version": "0.1.0",
+      "category": "marketing",
+      "tags": [
+        "seo",
+        "geo",
+        "ai-search",
+        "marketing"
+      ]
+    }
+  ]
+}

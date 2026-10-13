@@ -1,0 +1,11 @@
+# Every change is reviewed by the maintainer. Skills and the write path are
+# listed explicitly so a future co-maintainer can take a subtree.
+*                    @ZoolCoder
+/skills/             @ZoolCoder
+/agents/             @ZoolCoder
+/hooks/              @ZoolCoder
+/internal/provider/  @ZoolCoder
+/internal/ui/        @ZoolCoder
+/cmd/findable/       @ZoolCoder
+/SECURITY.md         @ZoolCoder
+/.github/            @ZoolCoder

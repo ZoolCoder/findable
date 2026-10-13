@@ -1,0 +1,24 @@
+{{template "ts-top" .}}
+<div class="top">
+  <div><h1 class="pg">{{$.T "Settings"}}</h1><p class="sub">{{$.T "everything here comes from the command line and the environment"}}</p></div>
+</div>
+<div class="grid-2">
+  <section class="panel">
+    <div class="panel-h"><h2>{{$.T "Where things are"}}</h2></div>
+    <dl class="kv">
+      <dt>{{$.T "Config"}}</dt><dd><code>{{.ConfigPath}}</code></dd>
+      <dt>{{$.T "Activity log"}}</dt><dd>{{if .ActivityPath}}<code>{{.ActivityPath}}</code>{{else}}<span class="muted">{{$.T "off"}}</span>{{end}}</dd>
+      <dt>{{$.T "Providers"}}</dt><dd>{{range .Providers}}<span class="chip plain">{{.}}</span> {{end}}</dd>
+      <dt>{{$.T "Access"}}</dt><dd>{{$.T "this machine only, no login; other sites cannot post to it"}}</dd>
+    </dl>
+  </section>
+  <section class="panel">
+    <div class="panel-h"><h2>{{$.T "How this works"}}</h2></div>
+    <ol class="steps">
+      <li><span><b>{{$.T "No database"}}</b>{{$.T "Live state is the state. The page remembers only the last plan it ran per target, until it stops."}}</span></li>
+      <li><span><b>{{$.T "Same config, same engine"}}</b>{{$.T "The config is re-read on every request, so an edit shows without a restart."}}</span></li>
+      <li><span><b>{{$.T "Apply behind a typed name"}}</b>{{$.T "Apply runs only the plan you reviewed. A plan that deletes anything is refused here."}}</span></li>
+    </ol>
+  </section>
+</div>
+{{template "ts-bottom" .}}

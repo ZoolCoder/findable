@@ -1,0 +1,47 @@
+= What findable is
+:description: An SEO and AI-search audit for websites, with agent skills that turn the findings into fixes and a reach plan.
+
+`findable` checks a website the way a search engine and an AI search crawler
+read it, and says what to fix. It reads a built directory offline or crawls
+the live site.
+
+[source,console]
+----
+$ findable audit
+== site: 2 findings
+
+warn  meta.h1.missing  the page has no <h1>
+      fix: Give the page one visible <h1> that states its subject.
+      /
+...
+----
+
+== Two layers
+
+The *Go tool* is deterministic and tested: the same site gives the same
+findings, so CI can gate a deploy on it. It checks titles, descriptions,
+canonicals, noindex, links, the sitemap, robots.txt, hreflang, JSON-LD
+(Organization, LocalBusiness, JobPosting, BreadcrumbList), AI crawler rules and
+llms.txt. xref:checks.adoc[Checks] lists every one.
+
+The *agent layer* does the judgement: skills and subagents trace each finding
+to the source that produces it, and plan the reach work no tool can check:
+schema strategy, international, AI search, local, off-site, content,
+conversion, measurement and launch. See xref:agents.adoc[Agents and MCP].
+
+== It writes two files
+
+`plan` lists every finding as `MANUAL` (yours to fix in the source) plus the
+two files `findable` can write itself, into the site's static directory:
+
+* the AI crawler block in `robots.txt`, from the policy the owner sets;
+* `llms.txt`, generated from the indexable pages.
+
+`apply` writes them and plans again to verify. Saved plans pin what was
+reviewed: `plan -out` writes it, `apply FILE` refuses when the files moved
+since. Publishing is a rebuild and deploy, which stays the owner's.
+
+== Four surfaces, one contract
+
+The CLI is the contract. The admin page, the MCP server, the agent skills and
+scripts all go through the same audit, plan and apply, with the same refusals.

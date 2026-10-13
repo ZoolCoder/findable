@@ -1,0 +1,43 @@
+= Adding a check or a provider
+:description: How to add a check or a provider to findable.
+
+== A check
+
+Checks live in `internal/check`, one file per area. A check reads the parsed
+site and calls `c.add(id, severity, path, message, fix)`.
+
+. Pick a stable id: `area.subject.problem`. `ignore:` matches on prefixes.
+. Say the fix in one sentence a site owner can act on.
+. Add a case to the table in `check_test.go` that fails without the check,
+  and keep the clean fixture in `internal/sitetest` passing.
+. List it in xref:checks.adoc[Checks].
+
+== A provider
+
+A provider turns a target into actions. It is one interface:
+
+[source,go]
+----
+type Provider interface {
+	Plan(ctx context.Context, t config.Target) ([]plan.Action, error)
+	Status(ctx context.Context, t config.Target) (string, error)
+}
+----
+
+. Add a package under `internal/provider/`. `website` is the example.
+. Add its name to `config.Providers`.
+. Register it in `engine.Default`.
+. Deny its import from `internal/ui` in `.golangci.yml`, so the page goes
+  through the engine.
+
+== Rules
+
+. *Plan writes nothing.* Read live state, compare, and return actions. Every
+  write lives in an action's `Do`.
+. *Say what breaks.* `Detail` is what a person reads to decide. Never put a
+  value that could be a secret in it.
+. *`MANUAL` has no `Do`.* Use it for what no tool should do, and say what a
+  person must do instead.
+. *Writes are verified.* The engine plans again after apply. A provider whose
+  write is accepted but not kept shows up as still outstanding; do not hide
+  that by caching.

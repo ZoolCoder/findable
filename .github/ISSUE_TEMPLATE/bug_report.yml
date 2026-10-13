@@ -1,0 +1,43 @@
+name: Bug report
+description: Something behaves differently from what the documentation says.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Replace private paths and hostnames with placeholders. Report a
+        security problem as [SECURITY.md](../blob/main/SECURITY.md) says, not here.
+  - type: input
+    id: version
+    attributes:
+      label: findable version
+      description: Output of `findable version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options: [site, not provider specific]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the `plan` or `apply` output, with names redacted.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and where the docs say so
+      description: A link to the documentation or a quote from it helps a great deal.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Minimal config that reproduces it
+      description: Redacted. The smallest file that still shows the problem.
+      render: yaml

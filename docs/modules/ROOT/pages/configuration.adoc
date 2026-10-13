@@ -1,0 +1,52 @@
+= Writing a config
+:description: Every key of the findable config file.
+
+The config is found in this order: `-config`, `$FINDABLE_CONFIG`,
+`./findable.yaml`, then `~/.config/findable/findable.yaml`.
+`-config -` reads standard input. Paths are relative to the config file.
+
+[source,yaml]
+----
+version: 1
+targets:
+  - name: site
+    provider: site
+    path: dist
+    base_url: https://example.com
+    write_dir: public
+    locales: [en, ro]
+    noindex: [/admin/**]
+    schema:
+      - {path: /, types: [Organization]}
+      - {path: /jobs/*, types: [JobPosting, BreadcrumbList]}
+    business: {name: Example Recruiting, phones: ["+40 21 000 0000"]}
+    ai_crawlers: {training: block}
+    llms_txt: {title: Example Recruiting}
+----
+
+`findable.example.yaml` in the repository explains each key in place.
+
+[cols="1,3"]
+|===
+| Key | Meaning
+
+| `version` | Always `1`. A future format bumps it.
+| `targets[].name` | Lowercase kebab case, unique. `-target` selects by it.
+| `targets[].provider` | `site`.
+| `targets[].path` | A built directory, read offline. Exclusive with `url`.
+| `targets[].url` | A live site to crawl instead, following its sitemap and links on its own host.
+| `targets[].base_url` | The public origin the built pages are served at. Required with `path`.
+| `targets[].max_pages` | Crawl limit with `url`. Default 300.
+| `targets[].write_dir` | Where `apply` writes robots.txt and llms.txt: the static directory the build copies unchanged. Without it, nothing is written and those changes are `MANUAL`.
+| `targets[].locales` | The first is the default with no prefix; the others live under `/<locale>/`. Two or more turn on the hreflang checks.
+| `targets[].noindex` | Paths meant to stay out of search. `*` matches one segment, `/**` any depth.
+| `targets[].schema` | Per path pattern, the JSON-LD types each page must carry.
+| `targets[].business` | Name and phones the JSON-LD must agree with (NAP). A branch suffix after the name is accepted.
+| `targets[].ai_crawlers` | `search`, `user`, `training`: `allow`, `block` or `any`. Defaults: allow, allow, any. The owner's decision.
+| `targets[].llms_txt` | Generate llms.txt: `title`, `summary`, `sections` (`name`, `path`, `optional`). Leave it out when the site has a hand-written one.
+| `targets[].min_words` | The `content.thin` floor. Default 150; `-1` turns it off.
+| `targets[].ignore` | Check id prefixes the owner decided to skip.
+|===
+
+An unknown key is an error, not a warning: a typo should not silently mean
+the default.

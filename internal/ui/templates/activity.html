@@ -1,0 +1,23 @@
+{{template "ts-top" .}}
+<div class="top">
+  <div><h1 class="pg">{{$.T "Activity"}}</h1><p class="sub">{{$.T "plans and applies made from this page, newest first, last %d" .Limit}}</p></div>
+</div>
+{{if .LogErr}}<p class="callout bad"><span class="err">{{.LogErr}}</span></p>{{end}}
+<section class="panel">
+  <div class="tw"><table>
+    <thead><tr><th>{{$.T "When"}}</th><th>{{$.T "Kind"}}</th><th>{{$.T "Target"}}</th><th>{{$.T "Detail"}}</th></tr></thead>
+    <tbody>
+    {{range .Rows}}
+      <tr>
+        <td class="when">{{stamp .At}}</td>
+        <td>{{if .OK}}<span class="chip on plain">{{.Kind}}</span>{{else}}<span class="chip bad plain">{{.Kind}} <span aria-hidden="true">✕</span><span class="sr-only">{{$.T "failed"}}</span></span>{{end}}</td>
+        <td>{{if .Target}}<a class="name" href="/targets/{{.Target}}">{{.Target}}</a>{{end}}</td>
+        <td class="wrap">{{.Detail}}</td>
+      </tr>
+    {{else}}
+      <tr><td colspan="4" class="empty">{{$.T "nothing recorded yet"}}</td></tr>
+    {{end}}
+    </tbody>
+  </table></div>
+</section>
+{{template "ts-bottom" .}}

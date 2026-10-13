@@ -1,0 +1,24 @@
+{
+  "name": "findable",
+  "version": "0.1.0",
+  "description": "SEO and AI-search reach for websites: findable audit checks a built or live site (meta, canonicals, sitemap, robots, hreflang, JSON-LD, AI crawlers, llms.txt) and every finding comes with a fix; skills and subagents cover technical SEO, schema, international, AI search (GEO), local, off-site, content, conversion, measurement and launch; findable doctor checks the install.",
+  "author": {
+    "name": "Abdallah Emad (ZoolCoder)",
+    "url": "https://github.com/zoolcoder"
+  },
+  "homepage": "https://github.com/zoolcoder/findable",
+  "repository": "https://github.com/zoolcoder/findable",
+  "license": "MIT",
+  "keywords": [
+    "seo",
+    "geo",
+    "ai-search",
+    "structured-data",
+    "schema-org",
+    "hreflang",
+    "llms-txt",
+    "local-seo",
+    "agent-skills",
+    "mcp"
+  ]
+}

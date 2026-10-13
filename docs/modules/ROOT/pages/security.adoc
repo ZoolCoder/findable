@@ -1,0 +1,25 @@
+= Threat model
+:description: What findable protects against, and what it does not.
+
+== What it protects
+
+* *Writes stay inside `write_dir`, reads inside `path`.* Both go through
+  `os.Root`: a symlink or `..` cannot lead out of the directory.
+* *A crawled site cannot steer the crawler.* It follows links and sitemaps on
+  the target's own host only, stops at `max_pages`, and caps every body it
+  reads.
+* *Nothing is applied that was not shown.* A saved plan refuses to apply when
+  the files moved. The admin page plans again before applying.
+* *Page text is data.* The skills and agents treat what a page says as
+  untrusted and never follow instructions in it.
+* *The admin page stays local.* Loopback only, `Host` checked against DNS
+  rebinding, cross-site writes refused, strict CSP.
+
+== What it does not
+
+* A config you did not write. It can name any directory you can write to.
+  Review it as you would a script.
+* An attacker who already has your shell.
+
+Report a problem through xref:index.adoc[the repository's] security policy,
+never a public issue.

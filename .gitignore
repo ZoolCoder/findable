@@ -1,0 +1,37 @@
+/bin/
+/dist/
+.DS_Store
+coverage.out
+
+# The live config: each user keeps their own.
+/findable.yaml
+*.secrets
+.env
+.dev.vars
+*.pem
+*.key
+
+# A binary built with a bare `go build`. Anchored: a bare name would also hide
+# every new file under cmd/findable/.
+/findable
+
+# docs toolchain
+/node_modules/
+/build/
+/.cache/
+# Ruby gems for the PDF build. Not vendor/: Go would treat it as a vendor
+# directory.
+/.bundle/
+
+# plugin eval runs
+/evals/results/
+
+/design/
+.webscan/
+
+# local workspace: links unpublished sibling modules
+go.work
+go.work.sum
+
+# zoolfleet manifest, local only
+/.zc/

@@ -1,0 +1,65 @@
+version: "2"
+
+# gofmt, go vet, build and the test suite already run in ci.yml. This adds the
+# checks those four do not make, plus the import boundaries that keep the
+# architecture honest.
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose # an unclosed response body leaks a connection
+    - errorlint # %v where %w is meant loses the error chain
+    - misspell
+    - unconvert
+    - depguard
+
+  settings:
+    errcheck:
+      # Writing to stdout or stderr has nowhere to report its own failure.
+      # Every other ignored error is written as an explicit `_ =` so the
+      # intent is visible at the call site.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.ReadCloser).Close
+
+    staticcheck:
+      checks:
+        - all
+        - -QF1002 # a switch on conditions reads better here than a tagged one
+
+    depguard:
+      rules:
+        # A plan is a list of actions. Planning performs no I/O of its own:
+        # providers read live state, and every write lives in an action's Do.
+        plan-performs-no-io:
+          files:
+            - '**/internal/plan/*.go'
+          deny:
+            - pkg: net/http
+              desc: plan must not perform I/O; providers read live state and hand it in
+            - pkg: os/exec
+              desc: plan must not run processes
+
+        # `validate` runs offline: config reads one file and nothing else.
+        config-only-reads-config:
+          files:
+            - '**/internal/config/*.go'
+          deny:
+            - pkg: net/http
+              desc: validation must not depend on anything reachable over a network
+            - pkg: os/exec
+              desc: validation must not run processes
+
+        # The UI reaches providers only through the engine, so ordering and
+        # the verify-after-apply step live in one place.
+        ui-goes-through-the-engine:
+          files:
+            - '**/internal/ui/*.go'
+            - '!**/internal/ui/*_test.go'
+          deny:
+            - pkg: github.com/zoolcoder/findable/internal/provider
+              desc: use the engine
+            - pkg: github.com/zoolcoder/findable/internal/provider/website
+              desc: use the engine

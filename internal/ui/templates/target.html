@@ -1,0 +1,58 @@
+{{template "ts-top" .}}
+<nav class="crumb" aria-label="{{$.T "Breadcrumb"}}"><a href="/">{{$.T "Targets"}}</a> / {{.Name}}</nav>
+<div class="top">
+  <div><h1 class="pg">{{.Name}}</h1><p class="sub"><span class="chip plain">{{.Provider}}</span> <code>{{.Path}}</code></p></div>
+  <div class="acts">
+    <form method="post" action="/targets/{{.Name}}/plan" data-busy="{{$.T "Planning…"}}"><button class="btn primary" type="submit" title="{{$.T "reads live state; changes nothing"}}">{{icon "play"}}{{$.T "Plan"}}</button></form>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <div class="panel-h"><h2>{{$.T "Live status"}}</h2><span class="act muted">{{$.T "read just now, no diffing"}}</span></div>
+    {{if .Live.Error}}<p class="callout bad"><span class="err">{{.Live.Error}}</span></p>{{else}}<p class="muted">{{.Live.Summary}}</p>{{end}}
+  </section>
+
+  <section class="panel apply">
+    <span class="ic">{{icon "zap"}}</span>
+    <div>
+      <h2>{{$.T "Apply"}}</h2>
+      {{if .Deletes}}
+      <p>{{$.T "The last plan deletes things. A deletion is confirmed at a terminal prompt, not from this page:"}}</p>
+      <div class="cmd"><code id="apply-cmd">{{.Command}}</code><button class="btn mini" type="button" data-copy="#apply-cmd">{{icon "copy"}}<span data-label>{{$.T "Copy"}}</span></button></div>
+      {{else if and .HasRun (not .Run.Err) (not .Run.Plan.Empty)}}
+      <p>{{$.T "Re-plans, refuses if anything moved since your plan, makes every change, then re-reads to verify. MANUAL items are left alone."}}</p>
+      <form class="inline" method="post" action="/targets/{{.Name}}/apply" autocomplete="off" data-busy="{{$.T "Applying…"}}">
+        <label>{{$.TH "Type %s to confirm" (strong .Name)}} <input type="text" name="confirm" placeholder="{{.Name}}" required spellcheck="false" autocomplete="off"></label>
+        <button class="btn primary" type="submit">{{icon "zap"}}{{$.T "Apply"}}</button>
+      </form>
+      {{else}}
+      <p class="muted">{{$.T "Plan first; apply runs exactly the plan you reviewed."}}</p>
+      {{end}}
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-h"><h2>{{$.T "Plan"}}</h2>{{if .HasRun}}<span class="n">{{len .Run.Plan.Actions}}</span><span class="act muted">{{if .Run.Applied}}{{$.T "re-read after the apply"}}{{else}}{{$.T "planned"}}{{end}} {{stamp .Run.At}}</span>{{end}}</div>
+  {{if .Run.Err}}<p class="callout bad"><b>{{if .Run.Applied}}{{$.T "apply failed"}}{{else}}{{$.T "plan failed"}}{{end}}</b> <span class="err">{{.Run.Err}}</span></p>{{end}}
+  {{if .HasRun}}
+    {{if .Run.Plan.Actions}}
+    <div class="chips-row"><span class="chip {{if .Counts.Create}}on{{else}}zero{{end}}"><i></i>{{.Counts.Create}} CREATE</span> <span class="chip {{if .Counts.Update}}warn{{else}}zero{{end}}"><i></i>{{.Counts.Update}} UPDATE</span> <span class="chip {{if .Counts.Delete}}bad{{else}}zero{{end}}"><i></i>{{.Counts.Delete}} DELETE</span> <span class="chip {{if .Counts.Manual}}violet{{else}}zero{{end}}"><i></i>{{.Counts.Manual}} MANUAL</span></div>
+    <div class="tw"><table>
+      <thead><tr><th>{{$.T "Kind"}}</th><th>{{$.T "Resource"}}</th><th>{{$.T "Why"}}</th></tr></thead>
+      <tbody>{{range .Run.Plan.Actions}}<tr><td><span class="chip {{opChip (print .Op)}}">{{.Op}}</span></td><td class="mono">{{.Resource}}</td><td class="wrap">{{.Detail}}</td></tr>{{end}}</tbody>
+    </table></div>
+    {{else if not .Run.Err}}<p class="empty">{{$.T "no changes: everything matches the config"}}</p>{{end}}
+  {{else}}
+    <p class="empty">{{$.TH "press %s to read the live state and list what differs" (strong ($.T "Plan"))}}</p>
+  {{end}}
+</section>
+
+{{if .Run.Output}}
+<section class="panel">
+  <div class="panel-h"><h2>{{$.T "Last apply"}}</h2></div>
+  <div class="tw"><pre class="mono wrap">{{.Run.Output}}</pre></div>
+</section>
+{{end}}
+{{template "ts-bottom" .}}

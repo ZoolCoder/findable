@@ -1,0 +1,63 @@
+= Agents and MCP
+:description: The findable MCP server, Claude Code plugin, skills, subagents and adapters for other agents.
+
+== MCP server
+
+`findable mcp` serves these tools over standard input and output:
+
+[cols="1,3"]
+|===
+| `audit` | Every finding with all its pages and a fix. Read-only.
+| `status` | Pages and finding counts per target. Read-only.
+| `validate` | Check the config offline. Read-only.
+| `plan` | Plan and save it. Returns a `plan_id`. Changes nothing.
+| `apply` | Apply a saved plan by `plan_id`. Refuses when the files moved.
+| `doctor` | Install health. Read-only.
+|===
+
+`apply` takes only the id of a plan the server saved, never a plan body.
+
+== Claude Code plugin
+
+The repository is a plugin: `skills/`, `agents/`, `commands/`, `hooks/` and
+`.mcp.json`.
+
+[source,console]
+----
+$ claude plugin marketplace add zoolcoder/findable
+$ claude plugin install findable
+----
+
+[cols="1,3"]
+|===
+| Skill | Use it for
+
+| `setup` | Install the binary, write a config, run `doctor`.
+| `seo-audit` | Run the audit and trace each finding to the source that produces it.
+| `plan-apply` | Plan, explain, ask for a yes, and apply that plan by id.
+| `schema` | Which JSON-LD each page should carry, within Google's rules.
+| `international` | Locales, hreflang and translated URLs.
+| `ai-search` | Being cited by AI search: crawler policy, llms.txt, answer-first pages.
+| `local-seo` | Business profiles, NAP, location pages, reviews.
+| `offsite` | Mentions and links worth earning.
+| `content-plan` | Audiences, questions, one page per intent.
+| `cro` | Turning visitors into leads without dark patterns.
+| `measure` | Search Console, analytics and what to watch.
+| `launch` | The checks before and after a site goes live.
+|===
+
+Subagents keep page text out of the main context: `technical-seo`,
+`ai-search`, `local-offsite` and `content-cro`. `/findable:audit` works
+through the findings; `/findable:reach` runs the four subagents in parallel
+and merges them into one plan.
+
+Every skill keeps the same rules: no cloaking, no fake reviews or ratings, an
+filled job is never left marked up as open, and the crawler
+policy, deploys and outreach are the owner's to decide. The `PreToolUse` hook
+asks before any `apply` with `-yes` or without a saved plan file. `evals/`
+checks the rules hold.
+
+== Other agents
+
+`adapters/` holds the same rules for Codex, Cursor, Gemini CLI, Copilot and
+cloud agents.

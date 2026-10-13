@@ -1,0 +1,79 @@
+= Getting started
+:description: Install findable, point it at a site, audit, plan and apply.
+
+== Install
+
+[tabs]
+====
+Homebrew::
++
+[source,console]
+----
+$ brew tap zoolcoder/findable https://github.com/zoolcoder/findable
+$ brew install --cask findable
+----
+
+Go::
++
+[source,console,subs=attributes+]
+----
+$ go install github.com/zoolcoder/findable/cmd/findable@latest
+----
++
+Needs Go {go-version} or later.
+====
+
+== Write a config
+
+Copy `findable.example.yaml` to `findable.yaml` next to the site and edit it.
+xref:configuration.adoc[Writing a config] lists every key.
+
+[source,console]
+----
+$ findable validate
+findable.yaml: 1 target(s), valid
+----
+
+== Audit
+
+Build the site first: a `path` target reads the build output.
+
+[source,console]
+----
+$ npm run build
+$ findable audit
+----
+
+Fix each finding in the site's source, never in the build output, and audit
+again. `findable audit -exit-code` exits 2 while any finding is an error, for CI.
+
+== Plan, then apply
+
+[source,console]
+----
+$ findable plan -out plan.json
+MANUAL  site  ai.crawler.allowed  [warn] site: robots.txt lets AI training crawlers in, but the config says block: GPTBot, ClaudeBot, ... Fix: Run apply to write the block into robots.txt, or change ai_crawlers.training.
+CREATE  site  llms.txt            generated from the site's titles and descriptions, 180 bytes; rebuild and deploy to publish it
+MANUAL  site  meta.h1.missing     [warn] /: the page has no <h1>. Fix: Give the page one visible <h1> that states its subject.
+UPDATE  site  robots.txt          AI crawler block, from ai_crawlers, 354 bytes; rebuild and deploy to publish it
+
+2 of these cannot be automated and are yours to do.
+
+saved to plan.json; apply it with: findable apply plan.json
+$ findable apply plan.json
+done  CREATE site llms.txt
+done  UPDATE site robots.txt
+applied and verified
+----
+
+Rebuild and deploy to publish the two files.
+
+== Check the install
+
+[source,console]
+----
+$ findable doctor
+ok    binary       /opt/homebrew/bin/findable (PATH: /opt/homebrew/bin/findable)
+ok    config       findable.yaml, 1 target(s)
+ok    target site  1 pages, 0 errors, 2 warnings, 0 notes
+----

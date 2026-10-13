@@ -1,0 +1,28 @@
+= Admin page
+:description: The findable admin page: targets, plans and applies in a browser.
+
+[source,console]
+----
+$ findable ui
+findable ui on http://127.0.0.1:7780/ (this machine only; Ctrl-C to stop)
+----
+
+The page lists targets with their live status. A target's page plans, shows
+each action, and applies.
+
+== Apply is deliberate
+
+* Apply needs a plan made on the page first.
+* You type the target's name to confirm.
+* The page plans again before applying and refuses if the result differs
+  from what you saw.
+* A plan that deletes is not applied from the page. It shows the terminal
+  command instead, where the deletion prompt runs.
+
+Every plan and apply is recorded on the *Activity* page, in a JSON lines file
+under the user data directory (`-data` changes it).
+
+== Local only
+
+The page has no login. It listens on loopback only, answers 403 to a foreign
+`Host` header and to a cross-site `POST`, and caps request bodies.
