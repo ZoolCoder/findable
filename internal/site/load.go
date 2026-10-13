@@ -2,6 +2,7 @@ package site
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -108,7 +109,15 @@ func collectSitemap(first string, read func(string) ([]byte, error)) Sitemap {
 	return sm
 }
 
+// maxSitemap caps a gzipped sitemap once unpacked: the protocol allows 50 MB.
+const maxSitemap = 50 << 20
+
 func parseSitemap(b []byte) (urls, children []string, err error) {
+	if bytes.HasPrefix(b, []byte{0x1f, 0x8b}) {
+		if b, err = gunzip(b); err != nil {
+			return nil, nil, err
+		}
+	}
 	var doc struct {
 		XMLName xml.Name
 		URLs    []struct {
@@ -135,7 +144,23 @@ func parseSitemap(b []byte) (urls, children []string, err error) {
 	return urls, children, nil
 }
 
-// Crawler reads a live site over HTTP.
+func gunzip(b []byte) ([]byte, error) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	out, err := io.ReadAll(io.LimitReader(zr, maxSitemap+1))
+	if err != nil {
+		return nil, fmt.Errorf("gzip: %w", err)
+	}
+	if len(out) > maxSitemap {
+		return nil, fmt.Errorf("unpacks to more than %d MB", maxSitemap>>20)
+	}
+	return out, nil
+}
+
+// Crawler reads a live site over HTTP. It stays on the site's host: a
+// redirect or a sitemap that points elsewhere is reported, never followed.
 type Crawler struct {
 	Client    *http.Client
 	UserAgent string
@@ -145,18 +170,21 @@ type Crawler struct {
 	Workers int
 }
 
-const maxBody = 5 << 20
+const (
+	maxBody      = 5 << 20
+	maxRedirects = 5
+	// robotsToken is the product token findable obeys in robots.txt.
+	robotsToken = "findable"
+)
 
 // Crawl reads robots.txt, llms.txt and the sitemap at base, then each page
 // the sitemap lists on this host. With no sitemap it follows links from the
-// home page instead.
+// home page instead. Pages robots.txt keeps findable out of are skipped.
 func (c Crawler) Crawl(ctx context.Context, base *url.URL) (Site, error) {
-	if c.Client == nil {
-		c.Client = &http.Client{Timeout: 20 * time.Second}
-	}
+	c.Client = sameHostClient(c.Client, base)
 	c.Max = cmpOr(c.Max, 300)
 	c.Workers = cmpOr(c.Workers, 4)
-	s := Site{Base: base, Live: true}
+	s := Site{Base: base, Live: true, Failed: map[string]string{}}
 
 	robots, err := c.text(ctx, s.URL("/robots.txt"))
 	if err != nil && !errors.Is(err, errNotFound) {
@@ -164,85 +192,135 @@ func (c Crawler) Crawl(ctx context.Context, base *url.URL) (Site, error) {
 	}
 	s.Robots = robots
 	s.LLMs, _ = c.text(ctx, s.URL("/llms.txt"))
+	rules := ParseRobots(robots.Body)
 	first := s.URL("/sitemap.xml")
-	if maps := ParseRobots(robots.Body).Sitemaps; len(maps) > 0 {
-		first = maps[0]
+	if len(rules.Sitemaps) > 0 {
+		first = rules.Sitemaps[0]
 	}
 	s.Sitemap = collectSitemap(first, func(loc string) ([]byte, error) {
+		u, err := url.Parse(loc)
+		if err != nil || !sameHost(u.Host, base.Host) {
+			return nil, fmt.Errorf("%s is not on %s; findable reads sitemaps on the site's own host only", loc, base.Host)
+		}
 		f, err := c.text(ctx, loc)
 		return []byte(f.Body), err
 	})
 
-	var paths []string
+	var queue []fetch
+	seen := map[string]bool{}
 	for _, u := range s.Sitemap.URLs {
-		if p := s.LocalPath("/", u); p != "" && !slices.Contains(paths, p) {
-			paths = append(paths, p)
+		if p := s.LocalPath("/", u); p != "" && !seen[p] {
+			seen[p] = true
+			queue = append(queue, fetch{path: p, url: u})
 		}
 	}
-	if len(paths) == 0 {
-		paths = []string{"/"}
+	if len(queue) == 0 {
+		queue = []fetch{{path: "/", url: s.URL("/")}}
 	}
-	s.Pages = c.pages(ctx, s, paths, len(s.Sitemap.URLs) == 0)
+	c.pages(ctx, &s, rules, queue, len(s.Sitemap.URLs) == 0)
 	slices.SortFunc(s.Pages, func(a, b Page) int { return strings.Compare(a.Path, b.Path) })
+	slices.Sort(s.Skipped)
 	return s, nil
 }
 
-// pages fetches paths, and with follow also every same-site link the pages
-// carry, until Max.
-func (c Crawler) pages(ctx context.Context, s Site, paths []string, follow bool) []Page {
-	var (
-		mu    sync.Mutex
-		out   []Page
-		seen  = map[string]bool{}
-		queue = slices.Clone(paths)
-	)
-	for _, p := range paths {
-		seen[p] = true
+// sameHostClient copies client (a default one when nil) so that it follows
+// at most maxRedirects redirects and never one to another host: the
+// redirect response comes back instead, and the crawl reports it.
+func sameHostClient(client *http.Client, base *url.URL) *http.Client {
+	c := http.Client{Timeout: 20 * time.Second}
+	if client != nil {
+		c = *client
 	}
-	for len(queue) > 0 && len(out) < c.Max {
-		batch := queue[:min(len(queue), c.Workers, c.Max-len(out))]
-		queue = queue[len(batch):]
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxRedirects || !sameHost(req.URL.Host, base.Host) {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+	return &c
+}
+
+// fetch is a page to read: its path on the site and the URL as listed.
+type fetch struct{ path, url string }
+
+// pages fetches the queue, and with follow also every same-site link the
+// pages carry, until Max. A page that does not answer 200 with HTML goes in
+// s.Failed with the reason.
+func (c Crawler) pages(ctx context.Context, s *Site, rules Robots, queue []fetch, follow bool) {
+	var mu sync.Mutex
+	seen := map[string]bool{}
+	for _, f := range queue {
+		seen[f.path] = true
+	}
+	for len(queue) > 0 && len(s.Pages) < c.Max {
+		var batch []fetch
+		for len(queue) > 0 && len(batch) < min(c.Workers, c.Max-len(s.Pages)) {
+			f := queue[0]
+			queue = queue[1:]
+			if rules.Allowed(robotsToken, f.path) {
+				batch = append(batch, f)
+			} else {
+				s.Skipped = append(s.Skipped, f.path)
+			}
+		}
 		var wg sync.WaitGroup
-		for _, p := range batch {
+		for _, f := range batch {
 			wg.Go(func() {
-				page, ok := c.page(ctx, s, p)
-				if !ok {
-					return
-				}
+				page, final, why := c.page(ctx, f)
 				mu.Lock()
 				defer mu.Unlock()
-				out = append(out, page)
+				if why != "" {
+					s.Failed[f.path] = why
+					// A same-host redirect to another page: read that page.
+					if final != "" && !seen[final] {
+						seen[final] = true
+						queue = append(queue, fetch{path: final, url: s.URL(final)})
+					}
+					return
+				}
+				s.Pages = append(s.Pages, page)
 				if !follow {
 					return
 				}
 				for _, href := range page.Links {
-					if lp := s.LocalPath(p, href); lp != "" && !seen[lp] && !LooksLikeFile(lp) {
+					if lp := s.LocalPath(f.path, href); lp != "" && !seen[lp] && !LooksLikeFile(lp) {
 						seen[lp] = true
-						queue = append(queue, lp)
+						queue = append(queue, fetch{path: lp, url: s.URL(lp)})
 					}
 				}
 			})
 		}
 		wg.Wait()
 	}
-	return out
+	s.Truncated = len(queue) > 0
 }
 
-func (c Crawler) page(ctx context.Context, s Site, p string) (Page, bool) {
-	resp, err := c.get(ctx, s.URL(p))
+// page reads one page. why is empty on success; otherwise it says what the
+// URL answered, and final is the same-host path a redirect led to, if any.
+func (c Crawler) page(ctx context.Context, f fetch) (page Page, final, why string) {
+	resp, err := c.get(ctx, f.url)
 	if err != nil {
-		return Page{}, false
+		return Page{}, "", "did not answer: " + err.Error()
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK || !strings.Contains(resp.Header.Get("Content-Type"), "html") {
-		return Page{}, false
+	if loc := resp.Header.Get("Location"); resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		return Page{}, "", fmt.Sprintf("redirects (%d) to %s, off the site or past %d hops", resp.StatusCode, loc, maxRedirects)
 	}
-	page, err := Parse(io.LimitReader(resp.Body, maxBody), p)
+	if resp.StatusCode != http.StatusOK {
+		return Page{}, "", fmt.Sprintf("answers %d", resp.StatusCode)
+	}
+	if got := CleanPath(resp.Request.URL.Path); got != f.path {
+		return Page{}, got, "redirects to " + got
+	}
+	if !strings.Contains(resp.Header.Get("Content-Type"), "html") {
+		return Page{}, "", "is not HTML (" + resp.Header.Get("Content-Type") + ")"
+	}
+	page, err = Parse(io.LimitReader(resp.Body, maxBody), f.path)
 	if err != nil {
-		return Page{}, false
+		return Page{}, "", "does not parse: " + err.Error()
 	}
 	page.XRobots = resp.Header.Get("X-Robots-Tag")
-	return page, true
+	return page, "", ""
 }
 
 var errNotFound = errors.New("not found")

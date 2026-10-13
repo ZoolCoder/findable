@@ -15,7 +15,8 @@ Every finding has a check id, a severity, the pages it was seen on and a fix.
 | `links.broken`, `links.orphan` | Internal links to pages that do not exist; pages nothing links to.
 | `img.alt.missing`, `social.og.missing` | Images without `alt`; no share card.
 | `content.thin` | Fewer words than `min_words`.
-| `sitemap.*` | Missing or invalid; URLs on another host, unknown, not canonical; indexable pages left out.
+| `sitemap.*` | Missing or invalid (`.xml.gz` is read too); URLs on another host, unknown, not canonical; on a live crawl, URLs that answer an error, redirect or are not HTML (`sitemap.url.status`); indexable pages left out.
+| `crawl.*` | Live crawl only: pages robots.txt keeps the `findable` token out of (`crawl.skipped`), and a crawl cut short by `max_pages` (`crawl.truncated`).
 | `robots.*` | Missing, blocking everything, or not naming the sitemap.
 | `hreflang.*` | With two or more locales: missing, invalid, not reciprocal, no self link, no `x-default`.
 | `schema.invalid.json`, `schema.expected` | JSON-LD that does not parse; types the config requires on a path.

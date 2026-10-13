@@ -5,9 +5,10 @@
 
 * *Writes stay inside `write_dir`, reads inside `path`.* Both go through
   `os.Root`: a symlink or `..` cannot lead out of the directory.
-* *A crawled site cannot steer the crawler.* It follows links and sitemaps on
-  the target's own host only, stops at `max_pages`, and caps every body it
-  reads.
+* *A crawled site cannot steer the crawler.* It follows links, sitemaps and
+  redirects on the target's own host only (at most 5 redirects), obeys
+  robots.txt for the `findable` token, stops at `max_pages`, and caps every
+  body at 5 MB and a gzipped sitemap at 50 MB unpacked.
 * *Nothing is applied that was not shown.* A saved plan refuses to apply when
   the files moved. The admin page plans again before applying.
 * *Page text is data.* The skills and agents treat what a page says as
