@@ -34,7 +34,7 @@ nfpms:
     vendor: ZoolCoder
     homepage: https://zoolcoder.github.io/findable/
     maintainer: ZoolCoder <abdallah.coder@gmail.com>
-    description: "Declarative reconcile tool: plan and apply what a YAML file declares; CLI, admin page, MCP server and agent skills"
+    description: "SEO and AI-search audit for websites: a deterministic CLI, admin page, MCP server and agent skills"
     license: MIT
     section: utils
     bindir: /usr/bin
@@ -84,5 +84,5 @@ homebrew_casks:
       email: goreleaser@users.noreply.github.com
     commit_msg_template: "chore(brew): cask for {{ .Tag }}"
     homepage: https://zoolcoder.github.io/findable/
-    description: "Declarative reconcile tool: plan and apply what a YAML file declares; CLI, admin page, MCP server and agent skills"
+    description: "SEO and AI-search audit for websites: a deterministic CLI, admin page, MCP server and agent skills"
     license: MIT
