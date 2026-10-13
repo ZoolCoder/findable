@@ -165,3 +165,28 @@ func TestFindingsMergeAndRank(t *testing.T) {
 		t.Fatal("two runs differ")
 	}
 }
+
+// TestLiveCrawlFindings checks what only a live crawl reports: sitemap URLs
+// that did not answer with their page, and the parts the crawl could not read.
+func TestLiveCrawlFindings(t *testing.T) {
+	s := load(t, func(f map[string]string) {
+		f["sitemap.xml"] = strings.Replace(f["sitemap.xml"], "</urlset>", `<url><loc>`+sitetest.Base+`/gone</loc></url></urlset>`, 1)
+	})
+	s.Live = true
+	s.Failed = map[string]string{"/gone": "answers 404"}
+	s.Skipped = []string{"/private"}
+	s.Truncated = true
+	got := map[string]Finding{}
+	for _, f := range Run(s, target()) {
+		got[f.Check] = f
+	}
+	if f := got["sitemap.url.status"]; f.Severity != Error || !strings.Contains(f.Message, "answers 404") || !slices.Contains(f.Pages, "/gone") {
+		t.Errorf("sitemap.url.status %+v", f)
+	}
+	if _, ok := got["sitemap.url.unknown"]; ok {
+		t.Error("a live crawl reported sitemap.url.unknown")
+	}
+	if !slices.Contains(got["crawl.skipped"].Pages, "/private") || got["crawl.truncated"].Severity != Info {
+		t.Errorf("crawl findings %+v %+v", got["crawl.skipped"], got["crawl.truncated"])
+	}
+}

@@ -1,6 +1,8 @@
 package site
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -222,5 +224,132 @@ func TestCrawlFollowsLinksWithoutASitemap(t *testing.T) {
 	s, _ = Crawler{Client: srv.Client()}.Crawl(context.Background(), base)
 	if len(s.Pages) != 3 {
 		t.Fatalf("pages %d", len(s.Pages))
+	}
+}
+
+func TestCleanPath(t *testing.T) {
+	for in, want := range map[string]string{"/": "/", "/index.html": "/", "/a/": "/a", "/a/index.html": "/a", "/a.html": "/a", "/myindex.html": "/myindex"} {
+		if got := CleanPath(in); got != want {
+			t.Errorf("%s: %s, want %s", in, got, want)
+		}
+	}
+}
+
+// TestCrawlStaysOnTheHost serves a site that tries to lead the crawl away: a
+// robots.txt sitemap on another host, a page that redirects off the site, a
+// page that only exists as .html, a 404 and a page robots.txt keeps
+// findable out of. Nothing may be fetched from the other host.
+func TestCrawlStaysOnTheHost(t *testing.T) {
+	var offHost int
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		offHost++
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(sitetest.Page("/", "Elsewhere", "Not this site")))
+	}))
+	defer other.Close()
+	var srv *httptest.Server
+	html := func(w http.ResponseWriter, path string) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(sitetest.Page(path, "Page "+path, "A page")))
+	}
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			_, _ = w.Write([]byte("User-agent: findable\nDisallow: /private\n\nSitemap: " + srv.URL + "/sitemap.xml\nSitemap: " + other.URL + "/sitemap.xml\n"))
+		case "/sitemap.xml":
+			_, _ = w.Write([]byte(`<urlset>` +
+				`<url><loc>` + srv.URL + `/</loc></url>` +
+				`<url><loc>` + srv.URL + `/about.html</loc></url>` +
+				`<url><loc>` + srv.URL + `/gone</loc></url>` +
+				`<url><loc>` + srv.URL + `/away</loc></url>` +
+				`<url><loc>` + srv.URL + `/old</loc></url>` +
+				`<url><loc>` + srv.URL + `/private/x</loc></url></urlset>`))
+		case "/", "/about.html", "/new":
+			html(w, CleanPath(r.URL.Path))
+		case "/away":
+			http.Redirect(w, r, other.URL+"/", http.StatusMovedPermanently)
+		case "/old":
+			http.Redirect(w, r, "/new", http.StatusMovedPermanently)
+		case "/private/x":
+			t.Error("fetched a path robots.txt disallows for findable")
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	base, _ := url.Parse(srv.URL)
+	s, err := Crawler{Client: srv.Client()}.Crawl(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, p := range s.Pages {
+		got = append(got, p.Path)
+	}
+	if !slices.Equal(got, []string{"/", "/about", "/new"}) {
+		t.Errorf("pages %v", got)
+	}
+	if offHost != 0 {
+		t.Errorf("%d requests reached the other host", offHost)
+	}
+	for path, want := range map[string]string{"/gone": "answers 404", "/away": "redirects (301)", "/old": "redirects to /new"} {
+		if !strings.Contains(s.Failed[path], want) {
+			t.Errorf("%s: %q, want %q", path, s.Failed[path], want)
+		}
+	}
+	if !slices.Equal(s.Skipped, []string{"/private/x"}) || s.Truncated {
+		t.Errorf("skipped %v truncated %v", s.Skipped, s.Truncated)
+	}
+}
+
+func TestCrawlRefusesASitemapOnAnotherHost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			_, _ = w.Write([]byte("Sitemap: https://elsewhere.example/sitemap.xml\n"))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(sitetest.Page("/", "Home", "Home")))
+	}))
+	defer srv.Close()
+	base, _ := url.Parse(srv.URL)
+	s, err := Crawler{Client: srv.Client()}.Crawl(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Sitemap.Found || len(s.Pages) != 1 {
+		t.Errorf("sitemap %+v pages %d", s.Sitemap, len(s.Pages))
+	}
+}
+
+func TestGzipSitemap(t *testing.T) {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	_, _ = zw.Write([]byte(`<urlset><url><loc>https://example.com/a</loc></url></urlset>`))
+	_ = zw.Close()
+	urls, _, err := parseSitemap(buf.Bytes())
+	if err != nil || !slices.Equal(urls, []string{"https://example.com/a"}) {
+		t.Fatalf("%v %v", urls, err)
+	}
+
+	buf.Reset()
+	zw = gzip.NewWriter(&buf)
+	_, _ = zw.Write(bytes.Repeat([]byte(" "), maxSitemap+1))
+	_ = zw.Close()
+	if _, _, err := parseSitemap(buf.Bytes()); err == nil || !strings.Contains(err.Error(), "unpacks to more than") {
+		t.Errorf("a gzip bomb: %v", err)
+	}
+}
+
+func TestCrawlTruncated(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<a href="/a">a</a><a href="/b">b</a><a href="/c">c</a>`))
+	}))
+	defer srv.Close()
+	base, _ := url.Parse(srv.URL)
+	s, _ := Crawler{Client: srv.Client(), Max: 2}.Crawl(context.Background(), base)
+	if !s.Truncated || len(s.Pages) != 2 {
+		t.Errorf("truncated %v pages %d", s.Truncated, len(s.Pages))
 	}
 }

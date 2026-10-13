@@ -24,6 +24,14 @@ type Site struct {
 	Robots  File
 	LLMs    File
 	Sitemap Sitemap
+
+	// Failed maps a path a crawl could not read to what it answered: a
+	// status, a redirect, not HTML. Empty for a directory read.
+	Failed map[string]string
+	// Skipped lists the paths robots.txt keeps findable out of.
+	Skipped []string
+	// Truncated is true when a crawl stopped at max_pages with pages left.
+	Truncated bool
 }
 
 // File is a text file at the site root.
@@ -116,8 +124,11 @@ func (s Site) LocalPath(from, href string) string {
 // CleanPath drops a trailing slash and index.html, so /a/, /a and
 // /a/index.html are one page.
 func CleanPath(p string) string {
-	p = strings.TrimSuffix(p, "index.html")
-	p = strings.TrimSuffix(p, ".html")
+	if strings.HasSuffix(p, "/index.html") {
+		p = strings.TrimSuffix(p, "index.html")
+	} else {
+		p = strings.TrimSuffix(p, ".html")
+	}
 	if p != "/" {
 		p = strings.TrimSuffix(p, "/")
 	}

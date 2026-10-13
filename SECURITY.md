@@ -24,10 +24,11 @@ Especially in scope:
 * **A write outside `write_dir`, or a read outside `path`.** Both go through
   `os.Root`, so a symlink or a `..` cannot lead out of the directory. A way
   around that is a vulnerability.
-* **A crawled site steering the crawler.** The crawler follows links and
-  sitemaps on the target's own host only, stops at `max_pages`, and caps
-  every body it reads. A page that makes it fetch another host, run without
-  end, or exhaust memory is in scope.
+* **A crawled site steering the crawler.** The crawler follows links,
+  sitemaps and redirects on the target's own host only (at most 5 redirects),
+  obeys robots.txt for the `findable` token, stops at `max_pages`, caps every
+  body at 5 MB and a gzipped sitemap at 50 MB unpacked. A page that makes it
+  fetch another host, run without end, or exhaust memory is in scope.
 * **Applying something that was not planned.** A saved plan that applies after
   the world moved, or an action executing that the plan did not list.
 * **A `MANUAL` action executing.** Those never have a `Do`.
