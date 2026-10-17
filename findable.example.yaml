@@ -35,6 +35,16 @@ targets:
       name: Example Recruiting
       phones: ["+40 21 000 0000"]
 
+    # The name people search for. Titles and the home page WebSite block
+    # should carry it. Defaults to business.name.
+    # brand: Example Recruiting
+
+    # Searches a page is meant to rank for: their words should be in its
+    # title and h1, and once in its description.
+    # queries:
+    #   - {query: recruitment agency, path: /}
+    #   - {query: warehouse jobs, path: /jobs}
+
     # What robots.txt tells AI crawlers: allow, block, or any (no opinion).
     # Defaults: search allow, user allow, training any. Apply writes a block
     # for every kind set to block. This is the owner's decision.

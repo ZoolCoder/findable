@@ -54,6 +54,12 @@ type Page struct {
 	Path string
 	// XRobots is the X-Robots-Tag response header; empty for a directory read.
 	XRobots string
+	// URL is the exact address the page answered 200 at, after any
+	// redirects; empty for a directory read.
+	URL string
+	// Redirects are the status codes of the redirects followed to reach URL
+	// from the address requested, in order.
+	Redirects []int
 
 	Lang        string
 	Title       string

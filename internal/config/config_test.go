@@ -24,6 +24,9 @@ targets:
       title: Shop
       sections:
         - {name: Jobs, path: /jobs/**}
+    brand: Shop Co
+    queries:
+      - {query: shop software, path: /}
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -37,6 +40,9 @@ targets:
 	}
 	if b, err := tg.Base(); err != nil || b.String() != "https://example.com" {
 		t.Fatalf("base %v %v", b, err)
+	}
+	if tg.SearchName() != "Shop Co" || len(tg.Queries) != 1 {
+		t.Fatalf("brand %q queries %v", tg.SearchName(), tg.Queries)
 	}
 }
 
@@ -59,6 +65,7 @@ targets:
     locales: [English]
     ai_crawlers: {search: maybe}
     llms_txt: {}
+    queries: [{query: shop}]
 `))
 	if err == nil {
 		t.Fatal("invalid config accepted")
@@ -66,7 +73,7 @@ targets:
 	for _, want := range []string{
 		"version is 2", "kebab-case", `provider "s3"`, "path (a built site) or url", "not both",
 		"declared twice", "base_url is required", "absolute http(s) URL", `locale "English"`,
-		"ai_crawlers.search", "llms_txt.title", "needs write_dir",
+		"ai_crawlers.search", "llms_txt.title", "needs write_dir", "queries[0] needs",
 	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %q:\n%v", want, err)

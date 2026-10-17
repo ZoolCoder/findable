@@ -129,6 +129,10 @@ func (c *run) schema() {
 				c.fields("schema.localbusiness.fields", Info, p.Path, n, "telephone", "url")
 			case n.is("Organization"):
 				c.fields("schema.organization.fields", Info, p.Path, n, "name", "url", "logo")
+				if !n.has("sameAs") {
+					c.add("schema.organization.sameas", Info, p.Path, n.types()[0]+" has no sameAs",
+						"List the brand's official profiles (LinkedIn, GitHub, Wikidata, a business directory) in sameAs: search engines tie them into one entity for brand searches.")
+				}
 			}
 		}
 		if jobs > 1 {

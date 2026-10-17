@@ -55,7 +55,7 @@ func (f Finding) Where() string {
 func Run(s site.Site, t config.Target) []Finding {
 	c := &run{site: s, t: t}
 	c.index()
-	for _, check := range []func(){c.crawl, c.meta, c.indexing, c.links, c.sitemap, c.robots, c.hreflang, c.schema, c.local, c.ai, c.content} {
+	for _, check := range []func(){c.crawl, c.meta, c.indexing, c.links, c.sitemap, c.redirects, c.robots, c.hreflang, c.schema, c.local, c.brand, c.queries, c.ai, c.content} {
 		check()
 	}
 	return merge(c.out, t.Ignore)

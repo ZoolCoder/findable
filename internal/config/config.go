@@ -65,6 +65,26 @@ type Target struct {
 	Schema     []SchemaRule `yaml:"schema"`
 	LLMsTxt    *LLMsTxt     `yaml:"llms_txt"`
 	Business   *Business    `yaml:"business"`
+	// BrandName is the name people search for the site by. Defaults to
+	// business.name.
+	BrandName string `yaml:"brand"`
+	// Queries are the searches a page is meant to rank for.
+	Queries []Query `yaml:"queries"`
+}
+
+// SearchName is the brand the titles and the WebSite block should carry, or
+// "" when the config names none.
+func (t Target) SearchName() string {
+	if t.BrandName != "" || t.Business == nil {
+		return t.BrandName
+	}
+	return t.Business.Name
+}
+
+// Query is one search and the page that should answer it.
+type Query struct {
+	Query string `yaml:"query"`
+	Path  string `yaml:"path"`
 }
 
 // AICrawlers is the site's policy per crawler kind: allow, block or any.
@@ -232,6 +252,11 @@ func (c Config) Validate() error {
 		for j, r := range t.Schema {
 			if !strings.HasPrefix(r.Path, "/") || len(r.Types) == 0 {
 				fail("schema[%d] needs a path starting with / and at least one type", j)
+			}
+		}
+		for j, q := range t.Queries {
+			if strings.TrimSpace(q.Query) == "" || !strings.HasPrefix(q.Path, "/") {
+				fail("queries[%d] needs a query and a path starting with /", j)
 			}
 		}
 		for _, p := range t.Noindex {

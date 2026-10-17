@@ -128,6 +128,17 @@ func TestChecks(t *testing.T) {
 		{name: "NAP mismatch", edit: ld(about, `{"@type":"EmploymentAgency","name":"Examples Ltd","address":"1 Road","telephone":"+44 9","url":"/"}`),
 			target: func(t *config.Target) { t.Business = &config.Business{Name: "Example", Phones: []string{"+44 1 2"}} },
 			want:   []string{"local.nap.mismatch"}},
+		{name: "Organization without sameAs", edit: replace(home, `,"sameAs":["https://github.com/example"]`, ""), want: []string{"schema.organization.sameas"}},
+		{name: "brand named in titles and WebSite", target: func(t *config.Target) { t.BrandName = "Example" }},
+		{name: "brand from business.name, spelled apart", target: func(t *config.Target) { t.Business = &config.Business{Name: "Exam ple"} },
+			want: []string{"local.nap.mismatch"}},
+		{name: "brand missing", target: func(t *config.Target) { t.BrandName = "Acme" }, want: []string{"meta.title.brand", "schema.website.name"}},
+		{name: "query in title, h1 and description", target: func(t *config.Target) {
+			t.Queries = []config.Query{{Query: "Widgets for workshops", Path: "/"}}
+		}},
+		{name: "query missing and page missing", target: func(t *config.Target) {
+			t.Queries = []config.Query{{Query: "AI integration", Path: "/about"}, {Query: "widgets", Path: "/shop"}}
+		}, want: []string{"content.query", "content.query.page"}},
 		{name: "ignored checks", edit: replace(home, "<title>Example widgets for every workshop</title>", ""),
 			target: func(t *config.Target) { t.Ignore = []string{"meta.title"} }},
 	} {
@@ -163,6 +174,50 @@ func TestFindingsMergeAndRank(t *testing.T) {
 	}
 	if !reflect.DeepEqual(Run(s, target()), got) {
 		t.Fatal("two runs differ")
+	}
+}
+
+// TestRedirectFindings checks a site that names its pages without the
+// trailing slash it serves them at, behind a 307: the sitemap, canonicals,
+// alternates and links all point at the redirect.
+func TestRedirectFindings(t *testing.T) {
+	base, _ := url.Parse(sitetest.Base)
+	page := func(path, served string, hops ...int) site.Page {
+		return site.Page{Path: path, URL: sitetest.Base + served, Redirects: hops, Title: "Example page for " + path,
+			Canonical: sitetest.Base + path, H1: []string{"x"}, Links: []string{"/about", "/about/#team"},
+			Hreflang: map[string]string{"en": sitetest.Base + path}}
+	}
+	s := site.Site{Base: base, Live: true, Pages: []site.Page{page("/", "/"), page("/about", "/about/", 307)},
+		Sitemap: site.Sitemap{Found: true, URLs: []string{sitetest.Base, sitetest.Base + "/about"}}}
+	got := map[string]Finding{}
+	for _, f := range Run(s, target()) {
+		got[f.Check] = f
+	}
+	for id, sev := range map[string]Severity{"sitemap.url.redirect": Error, "meta.canonical.redirect": Error, "redirect.temporary": Warn, "links.redirect": Info} {
+		if f, ok := got[id]; !ok || f.Severity != sev || !slices.Contains(f.Pages, "/about") && id != "links.redirect" {
+			t.Errorf("%s: %+v", id, f)
+		}
+	}
+	if f := got["sitemap.url.redirect"]; !strings.Contains(f.Fix, "https://example.com/about/, not https://example.com/about (307)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if !slices.Equal(got["links.redirect"].Pages, []string{"/", "/about"}) {
+		t.Errorf("links.redirect pages %v", got["links.redirect"].Pages)
+	}
+	if _, ok := got["hreflang.redirect"]; !ok {
+		t.Error("no hreflang.redirect")
+	}
+
+	// Named by the URLs they answer at, the same pages are clean.
+	for i := range s.Pages {
+		p := &s.Pages[i]
+		p.Canonical, p.Hreflang["en"], p.Redirects, p.Links = p.URL, p.URL, nil, []string{"/about/"}
+	}
+	s.Sitemap.URLs = []string{sitetest.Base + "/", sitetest.Base + "/about/"}
+	for _, f := range Run(s, target()) {
+		if strings.Contains(f.Check, "redirect") {
+			t.Errorf("clean site reported %+v", f)
+		}
 	}
 }
 

@@ -198,6 +198,33 @@ func TestCrawl(t *testing.T) {
 	}
 }
 
+func TestCrawlRecordsRedirects(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a":
+			http.Redirect(w, r, "/a/", http.StatusTemporaryRedirect)
+		case "/a/", "/":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<a href="/a">a</a>`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	base, _ := url.Parse(srv.URL)
+	s, err := Crawler{Client: srv.Client()}.Crawl(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, ok := s.Page("/a")
+	if !ok || a.URL != srv.URL+"/a/" || !slices.Equal(a.Redirects, []int{307}) {
+		t.Fatalf("page %+v", a)
+	}
+	if h, _ := s.Page("/"); h.URL != srv.URL+"/" || len(h.Redirects) != 0 {
+		t.Fatalf("home %+v", h)
+	}
+}
+
 func TestCrawlFollowsLinksWithoutASitemap(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")

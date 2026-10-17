@@ -320,7 +320,22 @@ func (c Crawler) page(ctx context.Context, f fetch) (page Page, final, why strin
 		return Page{}, "", "does not parse: " + err.Error()
 	}
 	page.XRobots = resp.Header.Get("X-Robots-Tag")
+	served := *resp.Request.URL
+	served.Fragment = ""
+	page.URL = served.String()
+	page.Redirects = hops(resp)
 	return page, "", ""
+}
+
+// hops lists the status codes of the redirects the client followed to get
+// resp, first hop first. CleanPath hides a redirect that only adds or drops
+// a trailing slash, so this is the only record of it.
+func hops(resp *http.Response) []int {
+	var codes []int
+	for r := resp.Request.Response; r != nil; r = r.Request.Response {
+		codes = append([]int{r.StatusCode}, codes...)
+	}
+	return codes
 }
 
 var errNotFound = errors.New("not found")

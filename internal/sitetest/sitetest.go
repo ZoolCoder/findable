@@ -39,7 +39,8 @@ func Page(path, title, desc string, links ...string) string {
 <meta name="description" content="` + desc + `">
 <link rel="canonical" href="` + Base + path + `">
 <meta property="og:title" content="` + title + `"><meta property="og:image" content="` + Base + `/og.jpg">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Example","url":"` + Base + `","logo":"` + Base + `/logo.png"}</script>
+<script type="application/ld+json">[{"@context":"https://schema.org","@type":"Organization","name":"Example","url":"` + Base + `","logo":"` + Base + `/logo.png","sameAs":["https://github.com/example"]},
+{"@context":"https://schema.org","@type":"WebSite","name":"Example","url":"` + Base + `"}]</script>
 </head><body><main><h1>` + title + `</h1><p>` + strings.Repeat("word ", 200) + `</p>` + a.String() + `</main></body></html>`
 }
 
