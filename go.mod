@@ -5,7 +5,7 @@ go 1.26.0
 toolchain go1.26.9
 
 require (
-	github.com/zoolcoder/toolshell v0.3.0
+	github.com/zoolcoder/toolshell v0.3.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
