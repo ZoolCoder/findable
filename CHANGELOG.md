@@ -4,7 +4,7 @@ Notable changes, newest first. Versions follow [semver](https://semver.org);
 before 1.0 a minor bump may change the config format, and any that does says so
 here with what to edit.
 
-## Unreleased
+## 0.2.0 - 2026-10-23
 
 - A live crawl records the URL each page answers 200 at and the redirects on
   the way. New checks use it: `sitemap.url.redirect`, `meta.canonical.redirect`,
@@ -60,10 +60,10 @@ here with what to edit.
   printing every row when a target cannot be read.
 - The crawl refuses to follow a redirect into a path robots.txt disallows and
   lists the redirecting URL under `crawl.skipped`; canonical and redirect
-  targets are tested against robots.txt as requested, trailing slash kept; it stops after a bounded
-  number of requests (four per page of `max_pages`) and marks the crawl
-  truncated, so dead links or endless redirects cannot hold it; and it follows
-  exactly the five redirects the message names.
+  targets are tested against robots.txt as requested, trailing slash kept; it
+  stops after a bounded number of requests (four per page of `max_pages`) and
+  marks the crawl truncated, so dead links or endless redirects cannot hold
+  it; and it follows exactly the five redirects the message names.
 - Pages whose last path segment has a dot, such as `/docs/v2.0`, are crawled
   and checked: only known asset extensions (`.pdf`, `.png`, `.js`, ...) count
   as files. robots.txt rules written in non-ASCII characters match the
