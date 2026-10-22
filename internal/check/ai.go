@@ -43,10 +43,11 @@ func (c *run) ai() {
 				"Blocked "+kind+" crawlers cannot read the site, so AI answers cannot cite it. Allow them, or set ai_crawlers."+kind+": block if that is the owner's choice.")
 		default:
 			c.add("ai.crawler.allowed", Warn, "", "robots.txt lets AI "+kind+" crawlers in, but the config says block: "+strings.Join(wrong, ", "),
-				"Run apply to write the block into robots.txt, or change ai_crawlers."+kind+".")
+				"Add the block to robots.txt (apply writes it when write_dir holds robots.txt; otherwise plan lists a MANUAL step), or change ai_crawlers."+kind+".")
 		}
 	}
 	c.llms()
+	c.llmsFull()
 }
 
 // llms checks llms.txt (llmstxt.org). It is a proposal few crawlers read
@@ -80,4 +81,13 @@ func (c *run) llms() {
 			c.add("ai.llms.link", Warn, lp, "llms.txt links a path with no page", "Regenerate llms.txt, or fix the link.")
 		}
 	}
+}
+
+// llmsFull notes a missing llms-full.txt next to an llms.txt, unless the
+// config already asks apply to write it.
+func (c *run) llmsFull() {
+	if !c.site.LLMs.Found || c.site.LLMsFull.Found || (c.t.LLMsTxt != nil && c.t.LLMsTxt.Full) {
+		return
+	}
+	c.add("ai.llms.full.missing", Info, "", "there is no llms-full.txt", "Optional: set llms_txt.full: true and apply writes the text of every listed page next to llms.txt.")
 }

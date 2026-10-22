@@ -43,7 +43,7 @@ type Target struct {
 	// URL is a live site to crawl from its sitemap.
 	URL string `yaml:"url"`
 	// BaseURL is the public origin canonicals and the sitemap should use.
-	// Defaults to URL; required with Path.
+	// Required with Path; not allowed with URL.
 	BaseURL string `yaml:"base_url"`
 	// WriteDir is where apply writes generated files, usually the folder the
 	// build copies as-is (public/, static/). Empty: plan only.
@@ -116,6 +116,8 @@ type LLMsTxt struct {
 	Summary  string        `yaml:"summary"`
 	Details  string        `yaml:"details"`
 	Sections []LLMsSection `yaml:"sections"`
+	// Full also writes llms-full.txt: the text of every listed page.
+	Full bool `yaml:"full"`
 }
 
 // LLMsSection lists every indexable page matching Path under Name.
@@ -219,6 +221,9 @@ func (c Config) Validate() error {
 	if c.Version != Version {
 		errs = append(errs, fmt.Errorf("version is %d, this build reads version %d", c.Version, Version))
 	}
+	if len(c.Targets) == 0 {
+		errs = append(errs, errors.New("config declares no targets"))
+	}
 	seen := map[string]bool{}
 	for i, t := range c.Targets {
 		where := fmt.Sprintf("targets[%d]", i)
@@ -285,6 +290,8 @@ func (t Target) validateSource(fail func(string, ...any)) {
 		fail("path (a built site) or url (a live one) is required")
 	case t.Path != "" && t.URL != "":
 		fail("set path or url, not both")
+	case t.URL != "" && t.BaseURL != "":
+		fail("base_url applies only with path; with url the crawled origin is the judged origin")
 	case t.Path != "" && t.BaseURL == "":
 		fail("base_url is required with path: canonicals and the sitemap are judged against it")
 	}

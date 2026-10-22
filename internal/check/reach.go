@@ -2,6 +2,7 @@ package check
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -27,44 +28,93 @@ func (c *run) redirects() {
 		}
 		if !sameURL(u, p.URL) {
 			c.add("sitemap.url.redirect", Error, p.Path, "the sitemap lists URLs that redirect",
-				fmt.Sprintf("List each page at the URL it answers 200 at: %s, not %s%s.", p.URL, u, codes(p.Redirects)))
+				fmt.Sprintf("List each page at the URL it answers 200 at, e.g. %s, not %s%s.", p.URL, u, codes(p.Redirects)))
 		}
 		if slices.ContainsFunc(p.Redirects, temporary) {
 			c.add("redirect.temporary", Warn, p.Path, "a permanent move answers with a temporary redirect (302, 303 or 307)",
 				"Stop redirecting by naming the final URL everywhere; where a redirect must stay, answer 301 or 308, so search engines move to the new URL.")
 		}
 	}
+	for _, from := range slices.Sorted(maps.Keys(c.site.Hops)) {
+		chain := c.site.Hops[from]
+		if len(chain) < 3 {
+			continue // one redirect: the checks above and below name it
+		}
+		c.add("redirect.chain", Warn, from, "a URL redirects more than once",
+			fmt.Sprintf("Redirect each URL straight to its final one, e.g. %s straight to %s; it now goes %s. Each hop costs crawl budget and a share of the ranking signals.", chain[0].URL, chain[len(chain)-1].URL, describe(chain)))
+	}
 	for _, p := range c.indexable {
 		if p.URL == "" {
 			continue
 		}
 		if p.Canonical != "" {
-			if canon := absURL(p.URL, p.Canonical); !sameURL(canon, p.URL) {
+			// A canonical on another scheme or host is meta.canonical.host already.
+			if canon := absURL(p.URL, p.Canonical); !sameURL(canon, p.URL) && c.onBase(canon) {
 				c.add("meta.canonical.redirect", Error, p.Path, "the canonical is not the URL the page answers at",
-					fmt.Sprintf("Name %s as canonical, or serve the page at %s without a redirect.", p.URL, canon))
+					fmt.Sprintf("Name the URL each page answers at as its canonical, e.g. %s, not %s; or serve the page at the canonical without a redirect.", p.URL, canon))
 			}
 		}
 		for _, href := range sortedValues(p.Hreflang) {
 			if alt, to, ok := c.redirected(p, href); ok {
 				c.add("hreflang.redirect", Warn, p.Path, "hreflang alternates name URLs that redirect",
-					fmt.Sprintf("Name each alternate at the URL it answers at: %s, not %s.", to, alt))
+					fmt.Sprintf("Name each alternate at the URL it answers at, e.g. %s, not %s.", to, alt))
 				break
 			}
 		}
 		for _, href := range p.Links {
 			if from, to, ok := c.redirected(p, href); ok {
 				c.add("links.redirect", Info, p.Path, "internal links point at URLs that redirect",
-					fmt.Sprintf("Link the final URL: %s, not %s.", to, from))
+					fmt.Sprintf("Link the final URL, e.g. %s, not %s.", to, from))
 				break
 			}
 		}
 	}
 }
 
+// onBase reports whether u has the scheme and host the site is audited at.
+func (c *run) onBase(u string) bool {
+	parsed, err := url.Parse(u)
+	return err == nil && parsed.Host == c.site.Base.Host && parsed.Scheme == c.site.Base.Scheme
+}
+
+// canonicalTargets checks a canonical that names another page: that page must
+// exist and answer 200, or the page hands its ranking to nothing. A canonical
+// on another host is meta.canonical.host; one naming the page itself at
+// another URL is meta.canonical.redirect.
+func (c *run) canonicalTargets() {
+	for _, p := range c.site.Pages {
+		if p.Noindex() || p.Canonical == "" || c.canonicalSelf(p) {
+			continue
+		}
+		lp := c.site.Resolve(p, p.Canonical)
+		if lp == "" || site.LooksLikeFile(lp) {
+			continue
+		}
+		if _, ok := c.site.Page(lp); ok {
+			continue
+		}
+		if why, failed := c.site.Failed[lp]; failed {
+			c.add("meta.canonical.target", Error, p.Path, "the canonical points at a URL that "+why,
+				"Point the canonical at the URL the page should rank under, one that answers 200 with it.")
+		} else if !c.site.Live {
+			c.add("meta.canonical.target", Error, p.Path, "the canonical points at a path with no page",
+				"Point the canonical at an existing page, or at the page itself.")
+		}
+	}
+}
+
+func describe(chain []site.Hop) string {
+	parts := make([]string, len(chain))
+	for i, h := range chain {
+		parts[i] = fmt.Sprintf("%s (%d)", h.URL, h.Code)
+	}
+	return strings.Join(parts, ", then ")
+}
+
 // redirected resolves href on page p and reports whether it names a crawled
 // page by an address other than the one that page answered at.
 func (c *run) redirected(p site.Page, href string) (from, to string, ok bool) {
-	lp := c.site.LocalPath(p.Path, href)
+	lp := c.site.Resolve(p, href)
 	if lp == "" || site.LooksLikeFile(lp) {
 		return "", "", false
 	}

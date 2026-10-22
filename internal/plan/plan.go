@@ -11,6 +11,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 type Op string
@@ -88,13 +89,24 @@ func (p Plan) Write(w io.Writer) error {
 	}
 	var b strings.Builder
 	for _, a := range sorted {
-		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %s\n", opW, string(a.Op), targetW, a.Target, resW, a.Resource, a.Detail)
+		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  %s\n", opW, string(a.Op), targetW, a.Target, resW, a.Resource, Printable(a.Detail))
 	}
 	if manual := p.Manual(); len(manual) > 0 {
 		fmt.Fprintf(&b, "\n%d of these cannot be automated and are yours to do.\n", len(manual))
 	}
 	_, err := io.WriteString(w, b.String())
 	return err
+}
+
+// Printable drops control characters, so text taken from a page cannot forge
+// a report row or send terminal escapes.
+func Printable(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
 }
 
 // JSONAction is one action in the machine-readable plan.

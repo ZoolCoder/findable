@@ -55,7 +55,7 @@ func (f Finding) Where() string {
 func Run(s site.Site, t config.Target) []Finding {
 	c := &run{site: s, t: t}
 	c.index()
-	for _, check := range []func(){c.crawl, c.meta, c.indexing, c.links, c.sitemap, c.redirects, c.robots, c.hreflang, c.schema, c.local, c.brand, c.queries, c.ai, c.content} {
+	for _, check := range []func(){c.crawl, c.meta, c.indexing, c.links, c.sitemap, c.redirects, c.canonicalTargets, c.robots, c.hreflang, c.schema, c.local, c.people, c.brand, c.queries, c.ai, c.content} {
 		check()
 	}
 	return merge(c.out, t.Ignore)
@@ -91,7 +91,7 @@ func Indexable(s site.Site) []site.Page {
 }
 
 func canonicalSelf(s site.Site, p site.Page) bool {
-	return p.Canonical == "" || s.LocalPath(p.Path, p.Canonical) == p.Path
+	return p.Canonical == "" || s.Resolve(p, p.Canonical) == p.Path
 }
 
 func (c *run) canonicalSelf(p site.Page) bool { return canonicalSelf(c.site, p) }

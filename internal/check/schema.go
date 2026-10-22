@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,6 +49,8 @@ func (n node) is(want string) bool {
 			return slices.Contains(localTypes, have)
 		case "Organization":
 			return slices.Contains(orgTypes, have)
+		case "Article":
+			return slices.Contains(articleTypes, have)
 		}
 		return have == want
 	})
@@ -116,6 +119,7 @@ func (c *run) schema() {
 				}
 			}
 		}
+		ids := indexByID(ns)
 		jobs := 0
 		for _, n := range ns {
 			switch {
@@ -124,15 +128,16 @@ func (c *run) schema() {
 				c.jobPosting(p.Path, n)
 			case n.is("BreadcrumbList"):
 				c.breadcrumb(p.Path, n)
+			case n.is("Article"):
+				c.article(p.Path, n, ids)
 			case n.is("LocalBusiness"):
 				c.fields("schema.localbusiness.fields", Warn, p.Path, n, "name", "address")
 				c.fields("schema.localbusiness.fields", Info, p.Path, n, "telephone", "url")
+				c.fields("schema.organization.fields", Info, p.Path, n, "logo")
+				c.sameAs(p.Path, n)
 			case n.is("Organization"):
 				c.fields("schema.organization.fields", Info, p.Path, n, "name", "url", "logo")
-				if !n.has("sameAs") {
-					c.add("schema.organization.sameas", Info, p.Path, n.types()[0]+" has no sameAs",
-						"List the brand's official profiles (LinkedIn, GitHub, Wikidata, a business directory) in sameAs: search engines tie them into one entity for brand searches.")
-				}
+				c.sameAs(p.Path, n)
 			}
 		}
 		if jobs > 1 {
@@ -142,10 +147,17 @@ func (c *run) schema() {
 	}
 }
 
+func (c *run) sameAs(path string, n node) {
+	if !n.has("sameAs") {
+		c.add("schema.organization.sameas", Info, path, fmt.Sprintf("%q has no sameAs", n.types()[0]),
+			"List the brand's official profiles (LinkedIn, GitHub, Wikidata, a business directory) in sameAs: search engines tie them into one entity for brand searches.")
+	}
+}
+
 func (c *run) fields(check string, sev Severity, path string, n node, keys ...string) {
 	for _, k := range keys {
 		if !n.has(k) {
-			c.add(check, sev, path, fmt.Sprintf("%s has no %s", n.types()[0], k), "Add "+k+" to the "+n.types()[0]+" block.")
+			c.add(check, sev, path, fmt.Sprintf("%q has no %s", n.types()[0], k), "Add "+k+" to the "+strconv.Quote(n.types()[0])+" block.")
 		}
 	}
 }
@@ -172,15 +184,20 @@ func (c *run) jobPosting(path string, n node) {
 			c.add("schema.jobposting.recommended", Info, path, "JobPosting has no "+k, "Add "+k+": job search filters on it.")
 		}
 	}
-	if until, ok := parseDate(n.str("validThrough")); ok && until.Before(now()) {
+	if until, ok := parseDeadline(n.str("validThrough")); ok && until.Before(now()) {
 		c.add("schema.jobposting.expired", Info, path, "the job's validThrough has passed, so Google treats it as closed",
 			"If the role is still open, set validThrough to the real closing date. If it is filled, say so on the page, or remove the page (404/410) or its JobPosting markup.")
 	}
 }
 
-func parseDate(s string) (time.Time, bool) {
-	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"} {
+// parseDeadline reads validThrough. A date alone means the whole day, so it
+// reads as the start of the next day.
+func parseDeadline(s string) (time.Time, bool) {
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04Z07:00", "2006-01-02T15:04", "2006-01-02"} {
 		if t, err := time.Parse(layout, s); err == nil {
+			if layout == "2006-01-02" {
+				t = t.AddDate(0, 0, 1)
+			}
 			return t, true
 		}
 	}
@@ -188,7 +205,13 @@ func parseDate(s string) (time.Time, bool) {
 }
 
 func (c *run) breadcrumb(path string, n node) {
-	items, _ := n["itemListElement"].([]any)
+	var items []any
+	switch v := n["itemListElement"].(type) {
+	case []any:
+		items = v
+	case map[string]any:
+		items = []any{v}
+	}
 	if len(items) == 0 {
 		c.add("schema.breadcrumb.items", Warn, path, "BreadcrumbList has no itemListElement", "List each crumb as a ListItem.")
 		return
@@ -239,7 +262,7 @@ func (c *run) local() {
 				c.add("local.nap.mismatch", Warn, p.Path, fmt.Sprintf("structured data names the business %q, not %q", name, b.Name), "Use one name everywhere: on the site, Google Business Profile and directories.")
 			}
 			if tel := n.str("telephone"); tel != "" && len(phones) > 0 && !phones[digits(tel)] {
-				c.add("local.nap.mismatch", Warn, p.Path, fmt.Sprintf("structured data lists phone %s, which is not in business.phones", tel), "Use the same numbers everywhere, or add it to the config.")
+				c.add("local.nap.mismatch", Warn, p.Path, fmt.Sprintf("structured data lists phone %q, which is not in business.phones", tel), "Use the same numbers everywhere, or add it to the config.")
 			}
 		}
 	}

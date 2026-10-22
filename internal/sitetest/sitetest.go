@@ -44,11 +44,15 @@ func Page(path, title, desc string, links ...string) string {
 </head><body><main><h1>` + title + `</h1><p>` + strings.Repeat("word ", 200) + `</p>` + a.String() + `</main></body></html>`
 }
 
+// Person is the about page's founder, the block that satisfies about.people.
+const Person = `{"@context":"https://schema.org","@type":"Person","name":"Ana Example","jobTitle":"Founder","url":"` + Base + `/about"}`
+
 // Files is the built site, by path under dist/.
 func Files() map[string]string {
+	about := Page("/about", "About Example and the people behind it", "Who makes Example widgets, where the workshop is, and how to reach us.", "/")
 	return map[string]string{
 		"index.html":       Page("/", "Example widgets for every workshop", "Example makes widgets for workshops of every size, shipped across Europe.", "/about"),
-		"about/index.html": Page("/about", "About Example and the people behind it", "Who makes Example widgets, where the workshop is, and how to reach us.", "/"),
+		"about/index.html": strings.Replace(about, "]</script>", ","+Person+"]</script>", 1),
 		"404.html":         "<html><body>not found</body></html>",
 		"robots.txt":       Robots,
 		"sitemap.xml": `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` +

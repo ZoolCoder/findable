@@ -57,11 +57,11 @@ applied and verified
 
 | Area | Checks |
 |---|---|
-| Pages | title and description (missing, length, duplicates), one `<h1>`, `lang`, canonical, Open Graph card, image `alt`, thin content |
+| Pages | title and description (missing, length, duplicates), one `<h1>`, `lang`, canonical, Open Graph card, image `alt`, thin content, titles that do not name the brand (`brand:`), a page's target query missing from title, h1 or description (`queries:`) |
 | Indexing | noindex by meta or `X-Robots-Tag`, noindex pages in the sitemap, broken internal links, orphan pages |
-| Sitemap and robots.txt | missing or invalid (`.xml.gz` too), URLs on another host or not canonical, URLs that 404 or redirect, Googlebot or Bingbot blocked |
+| Sitemap and robots.txt | missing or invalid (`.xml.gz` too), URLs on another host or not canonical, URLs that 404 or redirect (a missing trailing slash), redirect chains of two or more hops, two files serving one path, canonical, hreflang and internal links that only reach their page through a redirect, a canonical pointing at a page that does not exist or does not answer 200, temporary 302/303/307 redirects, Googlebot or Bingbot blocked |
 | International | hreflang codes, self links, reciprocity, `x-default` |
-| Structured data | JSON-LD that parses; Organization, LocalBusiness, JobPosting and BreadcrumbList fields; expired jobs; the types each kind of page must carry |
+| Structured data | JSON-LD that parses; Organization, LocalBusiness, JobPosting and BreadcrumbList fields; expired jobs; the types each kind of page must carry; Organization without `sameAs`, home page without a WebSite block named for the brand; articles without a named author or ISO 8601 dates; an about page that names nobody |
 | Local | the business name and phones (NAP) in the JSON-LD match the config |
 | AI search | robots.txt against your policy for AI search, user and training crawlers; llms.txt present, well formed, linking real pages |
 
@@ -72,11 +72,12 @@ crawler documentation.
 
 ## What it writes
 
-Two files, and only into the `write_dir` the config names:
+Up to three files, and only into the `write_dir` the config names:
 
 - the AI crawler block in robots.txt, between `# findable:start` and
   `# findable:end`, from the `ai_crawlers` policy you set;
-- llms.txt, generated from the site's indexable pages.
+- llms.txt, generated from the site's indexable pages;
+- llms-full.txt, the text of every page llms.txt lists, when `llms_txt.full` is set.
 
 Everything else is a `MANUAL` action: a fix for a person or an agent to make in
 the site's source. `plan` shows every write before `apply` makes it, and
@@ -88,7 +89,7 @@ the site's source. `plan` shows every write before `apply` makes it, and
 |---|---|
 | Skills | setup, plan and apply, SEO audit, schema, international, AI search, local SEO, off-site, content plan, conversion, measurement, launch |
 | Subagents | `technical-seo`, `ai-search`, `local-offsite`, `content-cro`: read-only, each returns a report |
-| Commands | `/findable:audit` works through the findings; `/findable:reach` runs the four subagents and merges one plan |
+| Commands | `/findable:audit` works through the findings; `/findable:plan` and `/findable:apply` preview and make guarded writes; `/findable:doctor` checks the install; `/findable:reach` runs the four subagents and merges one plan |
 | MCP | `findable mcp` serves audit, status, validate, plan, apply and doctor as tools |
 | Adapters | the same rules for Codex, Cursor, Gemini CLI, Copilot and cloud agents |
 

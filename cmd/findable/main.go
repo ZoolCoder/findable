@@ -63,7 +63,7 @@ Flags:
   -target value    limit to this target; repeat for several
   -yes             skip the confirmation prompt for deletions
   -exit-code       plan: exit 2 for changes, 3 for manual-only
-  -json            plan and status: machine-readable
+  -json            audit, plan, status and doctor: machine-readable
   -out string      plan: save the plan, to apply exactly what you reviewed
 `
 
@@ -81,7 +81,7 @@ var (
 func main() {
 	err := runCLI(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 	switch {
-	case err == nil:
+	case err == nil, errors.Is(err, flag.ErrHelp):
 	case errors.Is(err, errDrift), errors.Is(err, errFindings):
 		os.Exit(2)
 	case errors.Is(err, errManualOnly):
@@ -100,10 +100,35 @@ func (t *targetList) Set(v string) error {
 	return nil
 }
 
+func isCommand(word string) bool {
+	switch word {
+	case "version", "help", "doctor", "plan", "apply", "status", "validate":
+		return true
+	}
+	_, ok := optional[word]
+	return ok
+}
+
+// runStatus prints every row, then fails when a target could not be read, as
+// audit does.
+func runStatus(ctx context.Context, eng *engine.Engine, asJSON bool, stdout io.Writer) error {
+	rows := eng.Status(ctx)
+	if err := writeStatus(stdout, rows, asJSON); err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if r.Error != "" {
+			return fmt.Errorf("target %s: %s", r.Target, plan.Printable(r.Error))
+		}
+	}
+	return nil
+}
+
 // runCLI is main without the process, so tests drive the CLI as a shell would.
 func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	cmd := "plan"
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+	defaulted := len(args) == 0 || strings.HasPrefix(args[0], "-")
+	if !defaulted {
 		cmd, args = args[0], args[1:]
 	}
 	switch cmd {
@@ -136,6 +161,9 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags.Var(&targets, "target", "limit to this target")
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	if defaulted && isCommand(flags.Arg(0)) {
+		return fmt.Errorf("put the command first: %s %s [flags], not flags before %s", name, flags.Arg(0), flags.Arg(0))
 	}
 	*path = findConfig(*path)
 
@@ -171,7 +199,7 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	ctx := context.Background()
 
 	if cmd == "status" {
-		return writeStatus(stdout, eng.Status(ctx), *asJSON)
+		return runStatus(ctx, eng, *asJSON, stdout)
 	}
 
 	p, err := eng.Plan(ctx)
@@ -193,13 +221,8 @@ func runCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(p.Executable()) == 0 {
 		return nil
 	}
-	if p.Destructive() && !*yes {
-		if *path == "-" {
-			return errors.New("this plan deletes things and the config came from stdin; pass -yes to confirm")
-		}
-		if !confirm(stdin, stdout) {
-			return errCancelled
-		}
+	if err := confirmDeletes(p, *yes, *path == "-", stdin, stdout); err != nil {
+		return err
 	}
 	fmt.Fprintln(stdout)
 	return eng.Apply(ctx, p, stdout)
@@ -244,13 +267,28 @@ func writeStatus(w io.Writer, rows []engine.TargetStatus, asJSON bool) error {
 		width = max(width, len(r.Target))
 	}
 	for _, r := range rows {
-		line := r.Summary
+		line := plan.Printable(r.Summary)
 		if r.Error != "" {
-			line = "error: " + r.Error
+			line = "error: " + plan.Printable(r.Error)
 		}
-		if _, err := fmt.Fprintf(w, "%-*s  %s\n", width, r.Target, line); err != nil {
+		if _, err := fmt.Fprintf(w, "%-*s  %s\n", width, plan.Printable(r.Target), line); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// confirmDeletes guards apply: a plan that deletes needs -yes or a typed yes,
+// and a stdin config leaves no stdin to type on.
+func confirmDeletes(p plan.Plan, yes, configFromStdin bool, stdin io.Reader, stdout io.Writer) error {
+	if !p.Destructive() || yes {
+		return nil
+	}
+	if configFromStdin {
+		return errors.New("this plan deletes things and the config came from stdin; pass -yes to confirm")
+	}
+	if !confirm(stdin, stdout) {
+		return errCancelled
 	}
 	return nil
 }

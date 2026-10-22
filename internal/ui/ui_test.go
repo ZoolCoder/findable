@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zoolcoder/findable/internal/engine"
+	"github.com/zoolcoder/findable/internal/plan"
 	"github.com/zoolcoder/findable/internal/sitetest"
 	"github.com/zoolcoder/toolshell/activity"
 )
@@ -88,5 +89,33 @@ func TestApplyRefusesMovedState(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, "llms.txt")); string(b) != "hand-written" {
 		t.Fatal("wrote after refusing")
+	}
+}
+
+func TestClaimIsExclusivePerTarget(t *testing.T) {
+	s, _ := newPage(t)
+	if !s.claim("a") {
+		t.Fatal("first claim refused")
+	}
+	if s.claim("a") {
+		t.Fatal("second claim on a busy target granted")
+	}
+	if !s.claim("b") {
+		t.Fatal("another target blocked")
+	}
+	s.release("a")
+	if !s.claim("a") {
+		t.Fatal("claim after release refused")
+	}
+}
+
+func TestPageTextDropsControlCharacters(t *testing.T) {
+	s, _ := newPage(t)
+	var p plan.Plan
+	p.Add(plan.Action{Op: plan.OpManual, Target: "example", Resource: "x", Detail: "bad \x1b[2J\x07forged"})
+	s.setRun("example", run{Plan: p, Err: "failed \x1b[31m"})
+	body := do(s, http.MethodGet, "/targets/example", nil).Body.String()
+	if !strings.Contains(body, "bad [2Jforged") || strings.ContainsAny(body, "\x1b\x07") {
+		t.Errorf("control characters reached the page:\n%q", body)
 	}
 }

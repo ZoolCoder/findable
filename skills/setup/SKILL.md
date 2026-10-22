@@ -11,10 +11,10 @@ compatibility: Needs a shell with Homebrew or Go.
 2. Find out how the site is built. Read the build config (`package.json` scripts, `vite.config.*`, `astro.config.*`, `next.config.*`, `hugo.toml`, ...) to learn:
    - the output directory (`dist`, `build`, `out`, `_site`);
    - the static directory copied into it unchanged (`public/`, `static/`): that is `write_dir`;
-   - the public origin, from the canonical tags or the sitemap: that is `base_url`;
+   - the public origin, from the canonical tags or the sitemap: that is `base_url`, set only with `path`; with `url` leave it out, the crawled origin is the judged one;
    - the locales and which one has no URL prefix.
 3. Write `findable.yaml` next to the site, from `findable.example.yaml`. One target per site:
-   - `path` (a built directory, checked offline) or `url` (a live site, crawled). Prefer `path`: it is fast, repeatable and catches problems before they ship.
+   - `path` (a built directory, checked offline) or `url` (a live site, crawled). `base_url` is required with `path` and forbidden with `url`. Prefer `path`: it is fast, repeatable and catches problems before they ship.
    - `noindex`: the paths meant to stay out of search (admin, account, checkout). Ask the user; never guess that a page is meant to be hidden.
    - `schema`: which structured data each kind of page must carry.
    - `ai_crawlers`: leave it out until the user decides. The `ai-search` skill covers that conversation.

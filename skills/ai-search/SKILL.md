@@ -28,6 +28,7 @@ A proposed standard (llmstxt.org): a markdown map of the site for language model
 
 - If the site has a hand-written `llms.txt`, keep it. findable checks its format and links.
 - Otherwise set `llms_txt:` (title, summary, sections) and apply: findable writes it from the indexable pages' titles and descriptions, so good descriptions make a good llms.txt.
+- Set `llms_txt.full: true` to also write `llms-full.txt`, the text of every listed page; findable notes (`ai.llms.full.missing`) when an llms.txt has no companion.
 
 ## 3. Pages AI answers quote
 

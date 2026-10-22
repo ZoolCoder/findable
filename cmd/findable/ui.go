@@ -25,6 +25,7 @@ func init() {
 func runUI(args []string, _ io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("ui", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	flags.Usage = func() { fmt.Fprint(stderr, usage()) }
 	addr := flags.String("addr", "127.0.0.1:7780", "listen address; loopback only")
 	path := flags.String("config", "", "config file, re-read on every request")
 	data := flags.String("data", "", "directory for the activity log")

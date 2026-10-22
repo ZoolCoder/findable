@@ -35,15 +35,17 @@ targets:
 | `targets[].provider` | `site`.
 | `targets[].path` | A built directory, read offline. Exclusive with `url`.
 | `targets[].url` | A live site to crawl instead, following its sitemap and links on its own host.
-| `targets[].base_url` | The public origin the built pages are served at. Required with `path`.
+| `targets[].base_url` | The public origin the built pages are served at. Required with `path`; rejected with `url`, where the crawled origin is the judged one.
 | `targets[].max_pages` | Crawl limit with `url`. Default 300.
-| `targets[].write_dir` | Where `apply` writes robots.txt and llms.txt: the static directory the build copies unchanged. Without it, nothing is written and those changes are `MANUAL`.
+| `targets[].write_dir` | Where `apply` writes robots.txt, llms.txt and, with `llms_txt.full`, llms-full.txt: the static directory the build copies unchanged. Without it, nothing is written and those changes are `MANUAL`.
 | `targets[].locales` | The first is the default with no prefix; the others live under `/<locale>/`. Two or more turn on the hreflang checks.
 | `targets[].noindex` | Paths meant to stay out of search. `*` matches one segment, `/**` any depth.
 | `targets[].schema` | Per path pattern, the JSON-LD types each page must carry.
 | `targets[].business` | Name and phones the JSON-LD must agree with (NAP). A branch suffix after the name is accepted.
+| `targets[].brand` | The name people search for the site by. Defaults to `business.name`. Drives `meta.title.brand` and `schema.website.name`.
+| `targets[].queries` | Searches a page should rank for: a list of `query` and `path` (path starts with `/`). Drives `content.query` and `content.query.page`.
 | `targets[].ai_crawlers` | `search`, `user`, `training`: `allow`, `block` or `any`. Defaults: allow, allow, any. The owner's decision.
-| `targets[].llms_txt` | Generate llms.txt: `title`, `summary`, `sections` (`name`, `path`, `optional`). Leave it out when the site has a hand-written one.
+| `targets[].llms_txt` | Generate llms.txt: `title`, `summary`, `details` (a free-text paragraph after the summary), `sections` (`name`, `path`, `optional`), `full` (also write llms-full.txt: the text of every listed page). Leave it out when the site has a hand-written one.
 | `targets[].min_words` | The `content.thin` floor. Default 150; `-1` turns it off.
 | `targets[].ignore` | Check id prefixes the owner decided to skip.
 |===

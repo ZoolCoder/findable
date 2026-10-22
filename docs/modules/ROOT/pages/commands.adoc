@@ -8,7 +8,7 @@
 | `audit` | Every finding, worst first, with all its pages and a fix. Read-only.
 | `plan` | The files `apply` would write, and every finding as `MANUAL`. The default.
 | `apply [FILE]` | Write the files, then plan again to verify. With a saved plan, exactly those.
-| `status` | Pages and finding counts per target.
+| `status` | Pages and finding counts per target. Exits 1 when a target cannot be read, after printing every row.
 | `validate` | Check the config offline.
 | `doctor` | Install health: binary, config, each target.
 | `ui` | The admin page.
@@ -20,11 +20,13 @@
 
 [cols="1,3"]
 |===
-| `-config FILE` | Config file, or `-` for standard input.
+| `-config FILE` | Config file, or `-` for standard input. `ui` re-reads the file on every request.
 | `-target NAME` | Limit to this target; repeat for several.
 | `-out FILE` | `plan`: save the plan for `apply FILE`.
 | `-json` | `audit`, `plan`, `status` and `doctor`: machine-readable.
 | `-exit-code` | `audit`: exit 2 on an error finding. `plan`: exit 2 for changes, 3 for manual-only.
+| `-addr HOST:PORT` | `ui`: listen address, loopback only. Default `127.0.0.1:7780`.
+| `-data DIR` | `ui`: directory for the activity log.
 | `-yes` | `apply`: skip the confirmation prompt for deletions. The `site` provider never deletes.
 |===
 
@@ -33,7 +35,7 @@
 [cols="1,3"]
 |===
 | `0` | Nothing to do, or the apply converged and was verified.
-| `1` | Something failed.
+| `1` | Something failed, including a target `audit` or `status` cannot read. Put the command first: `findable apply -config FILE`, not `findable -config FILE apply`, which is refused.
 | `2` | With `-exit-code`: changes are outstanding, or the audit found an error.
 | `3` | With `-exit-code`: nothing left but `MANUAL` items.
 |===
