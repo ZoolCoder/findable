@@ -21,7 +21,8 @@ warn  meta.h1.missing  the page has no <h1>
 The *Go tool* is deterministic and tested: the same site gives the same
 findings, so CI can gate a deploy on it. It checks titles, descriptions,
 canonicals, noindex, links, the sitemap, robots.txt, hreflang, JSON-LD
-(Organization, LocalBusiness, JobPosting, BreadcrumbList), AI crawler rules and
+(Organization, LocalBusiness, JobPosting, BreadcrumbList, Article, WebSite and
+the Person on the about page), AI crawler rules and
 llms.txt. xref:checks.adoc[Checks] lists every one.
 
 The *agent layer* does the judgement: skills and subagents trace each finding
@@ -29,13 +30,14 @@ to the source that produces it, and plan the reach work no tool can check:
 schema strategy, international, AI search, local, off-site, content,
 conversion, measurement and launch. See xref:agents.adoc[Agents and MCP].
 
-== It writes two files
+== It writes up to three files
 
 `plan` lists every finding as `MANUAL` (yours to fix in the source) plus the
-two files `findable` can write itself, into the site's static directory:
+up to three files `findable` can write itself, into the site's static directory:
 
 * the AI crawler block in `robots.txt`, from the policy the owner sets;
-* `llms.txt`, generated from the indexable pages.
+* `llms.txt`, generated from the indexable pages;
+* `llms-full.txt`, the text of every page `llms.txt` lists, when `llms_txt.full` is set.
 
 `apply` writes them and plans again to verify. Saved plans pin what was
 reviewed: `plan -out` writes it, `apply FILE` refuses when the files moved

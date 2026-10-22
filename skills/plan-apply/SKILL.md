@@ -1,13 +1,13 @@
 ---
 name: plan-apply
-description: Plan and apply the files findable writes (robots.txt AI crawler block, llms.txt) safely. Plans, explains every action in plain words, applies only after the user says yes to that exact plan, and reads the verification. Use when the user asks to "apply", "write robots.txt", "generate llms.txt" or "sync" findable, or after any config edit.
+description: Plan and apply the files findable writes (robots.txt AI crawler block, llms.txt, llms-full.txt) safely. Plans, explains every action in plain words, applies only after the user says yes to that exact plan, and reads the verification. Use when the user asks to "apply", "write robots.txt", "generate llms.txt" or "sync" findable, or after any config edit.
 license: MIT
 compatibility: Needs findable on PATH and a passing `findable doctor`.
 ---
 
 # Plan, then apply
 
-findable writes two files, and only into `write_dir`: the AI crawler block in `robots.txt` (between `# findable:start` and `# findable:end`; the rest of the file is the owner's) and `llms.txt` when `llms_txt` is configured. Everything else it finds is a MANUAL action: a person or an agent fixes the site's source.
+findable writes up to three files, and only into `write_dir`: the AI crawler block in `robots.txt` (between `# findable:start` and `# findable:end`; the rest of the file is the owner's) and `llms.txt` when `llms_txt` is configured, and `llms-full.txt` when `llms_txt.full` is true. Everything else it finds is a MANUAL action: a person or an agent fixes the site's source.
 
 ## 1. Plan
 

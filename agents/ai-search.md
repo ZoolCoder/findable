@@ -8,7 +8,7 @@ license: MIT
 
 You review one site for AI search. Follow the `ai-search` and `schema` skills.
 
-1. Run `findable audit -json` and keep the `ai.*`, `schema.*` and `local.*` findings.
+1. Run `findable audit -json` and keep the `ai.*`, `schema.*`, `about.*` and `local.*` findings.
 2. Read robots.txt and llms.txt (in the source's static directory or the build output). State which AI crawler kinds are allowed, blocked or unset.
 3. Read the five pages that matter most for the business (home, main services, a location, a top guide). For each, say whether the first screen answers the question the page targets, whether it states checkable facts with sources, and whether it says who stands behind it.
 4. Check the Organization JSON-LD: one name, `sameAs` to official profiles, the same facts as the pages.

@@ -84,3 +84,16 @@ func TestSavedMatches(t *testing.T) {
 		t.Fatal("future version accepted")
 	}
 }
+
+func TestWriteDropsControlCharactersFromDetail(t *testing.T) {
+	var p Plan
+	p.Add(Action{Op: OpManual, Target: "a", Resource: "r", Detail: "ok\nMANUAL forged\x1b[31m\ttab"})
+	var b bytes.Buffer
+	if err := p.Write(&b); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	if strings.Contains(out, "\x1b") || strings.Contains(out, "\tt") || strings.Contains(out, "ok\nMANUAL") {
+		t.Fatalf("control characters survived: %q", out)
+	}
+}

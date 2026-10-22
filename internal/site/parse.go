@@ -18,6 +18,7 @@ func Parse(r io.Reader, path string) (Page, error) {
 	p := Page{Path: path, Hreflang: map[string]string{}, OG: map[string]string{}}
 	w := walker{page: &p}
 	w.walk(doc, false, false)
+	p.Text = bodyText(doc)
 	return p, nil
 }
 

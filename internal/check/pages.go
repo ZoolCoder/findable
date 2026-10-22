@@ -2,7 +2,9 @@ package check
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -21,6 +23,12 @@ const (
 func (c *run) meta() {
 	titles, descs := map[string][]string{}, map[string][]string{}
 	for _, p := range c.indexable {
+		if p.Title != "" {
+			titles[p.Title] = append(titles[p.Title], p.Path)
+		}
+		if p.Description != "" {
+			descs[p.Description] = append(descs[p.Description], p.Path)
+		}
 		switch n := utf8.RuneCountInString(p.Title); {
 		case n == 0:
 			c.add("meta.title.missing", Error, p.Path, "the page has no <title>", "Write a unique title naming the page's subject and the brand.")
@@ -28,8 +36,6 @@ func (c *run) meta() {
 			c.add("meta.title.length", Warn, p.Path, fmt.Sprintf("the title is over %d characters and is cut short in results", titleMax), "Put the words a searcher types first; keep it under 60 characters.")
 		case n < titleMin:
 			c.add("meta.title.length", Warn, p.Path, fmt.Sprintf("the title is under %d characters", titleMin), "Name what the page offers, not only the brand.")
-		default:
-			titles[p.Title] = append(titles[p.Title], p.Path)
 		}
 		switch n := utf8.RuneCountInString(p.Description); {
 		case n == 0:
@@ -38,8 +44,6 @@ func (c *run) meta() {
 			c.add("meta.description.length", Info, p.Path, fmt.Sprintf("the description is over %d characters and is cut short", descMax), "Keep the point in the first 150 characters.")
 		case n < descMin:
 			c.add("meta.description.length", Info, p.Path, fmt.Sprintf("the description is under %d characters", descMin), "Say what the page offers and who it is for.")
-		default:
-			descs[p.Description] = append(descs[p.Description], p.Path)
 		}
 		switch len(p.H1) {
 		case 0:
@@ -126,7 +130,7 @@ func (c *run) links() {
 	inbound := map[string]bool{}
 	for _, p := range c.site.Pages {
 		for _, href := range p.Links {
-			lp := c.site.LocalPath(p.Path, href)
+			lp := c.site.Resolve(p, href)
 			if lp == "" || site.LooksLikeFile(lp) {
 				continue
 			}
@@ -158,6 +162,10 @@ func (c *run) sitemapPaths() map[string]bool {
 func (c *run) sitemap() {
 	sm := c.site.Sitemap
 	if !sm.Found {
+		if sm.Err != "" {
+			c.add("sitemap.invalid", Error, "", "the sitemap could not be read: "+sm.Err, "Serve the sitemap named in robots.txt (or /sitemap.xml) with a 200 and a valid <urlset> or <sitemapindex>.")
+			return
+		}
 		c.add("sitemap.missing", Error, "", "there is no sitemap.xml", "Publish /sitemap.xml listing every indexable page, and name it in robots.txt.")
 		return
 	}
@@ -172,6 +180,8 @@ func (c *run) sitemap() {
 			c.add("sitemap.url.host", Error, "", "the sitemap lists URLs on another host", "List only URLs on "+c.site.Base.String()+".")
 		case !strings.HasPrefix(u, c.site.Base.Scheme+"://"+c.site.Base.Host):
 			c.add("sitemap.url.host", Warn, lp, "the sitemap URL is not on the canonical origin "+c.site.Base.String(), "List each page by its canonical URL.")
+		case site.LooksLikeFile(lp):
+			// PDFs, images and video are valid sitemap entries; nothing to check.
 		default:
 			if p, ok := c.site.Page(lp); ok {
 				if !c.canonicalSelf(p) {
@@ -191,11 +201,26 @@ func (c *run) sitemap() {
 	}
 }
 
-// crawl says what a live crawl could not read, so a clean report is not
-// mistaken for a full one.
+// crawl says what a crawl or directory read could not read, so a clean report
+// is not mistaken for a full one.
 func (c *run) crawl() {
 	for _, p := range c.site.Skipped {
 		c.add("crawl.skipped", Info, p, "robots.txt keeps findable out, so the page was not checked", "Allow findable in robots.txt, or audit the built directory instead.")
+	}
+	listed := c.sitemapPaths()
+	for _, p := range slices.Sorted(maps.Keys(c.site.Failed)) {
+		if listed[p] {
+			continue // sitemap.url.status reports it
+		}
+		why := c.site.Failed[p]
+		sev := Error
+		if strings.HasPrefix(why, "redirects to ") {
+			sev = Info
+		}
+		c.add("crawl.failed", sev, p, "the page could not be read: it "+why, "Fix the URL, or the link that leads to it.")
+	}
+	for _, p := range slices.Sorted(maps.Keys(c.site.Shadowed)) {
+		c.add("crawl.shadowed", Warn, p, fmt.Sprintf("two files serve this path; %s was not checked", c.site.Shadowed[p]), "Keep one file per path: delete the other, or make it a redirect.")
 	}
 	if c.site.Truncated {
 		c.add("crawl.truncated", Info, "", fmt.Sprintf("the crawl stopped at max_pages (%d pages); the rest was not checked", len(c.site.Pages)), "Raise max_pages, or audit the built directory.")
@@ -233,7 +258,7 @@ func (c *run) hreflang() {
 			c.add("hreflang.xdefault", Info, p.Path, "no x-default alternate", "Add hreflang=\"x-default\" pointing at the default-language page.")
 		}
 		own := c.locale(p.Path)
-		if href, ok := p.Hreflang[own]; !ok || c.site.LocalPath(p.Path, href) != p.Path {
+		if href, ok := p.Hreflang[own]; !ok || c.site.Resolve(p, href) != p.Path {
 			c.add("hreflang.self", Warn, p.Path, "the page's own language ("+own+") does not point back at it", "Each page lists itself among its alternates.")
 		}
 		for code, href := range p.Hreflang {
@@ -241,11 +266,11 @@ func (c *run) hreflang() {
 				c.add("hreflang.invalid", Error, p.Path, fmt.Sprintf("hreflang %q is not a language code", code), "Use ISO 639-1 codes, optionally with a region: en, ro, pt-br.")
 				continue
 			}
-			other, ok := c.site.Page(c.site.LocalPath(p.Path, href))
+			other, ok := c.site.Page(c.site.Resolve(p, href))
 			if !ok || other.Path == p.Path || code == "x-default" {
 				continue
 			}
-			if back, ok := other.Hreflang[own]; !ok || c.site.LocalPath(other.Path, back) != p.Path {
+			if back, ok := other.Hreflang[own]; !ok || c.site.Resolve(other, back) != p.Path {
 				c.add("hreflang.reciprocal", Warn, p.Path, "an alternate does not link back", other.Path+" must list "+p.Path+" as hreflang=\""+own+"\"; Google ignores one-way pairs.")
 			}
 		}

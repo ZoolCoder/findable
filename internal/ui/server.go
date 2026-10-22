@@ -51,6 +51,7 @@ type Server struct {
 
 	mu   sync.Mutex
 	runs map[string]run
+	busy map[string]bool
 }
 
 // run is the last plan or apply the page made for one target.
@@ -67,7 +68,7 @@ func New(deps Deps) (*Server, error) {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, mux: http.NewServeMux(), runs: map[string]run{}}
+	s := &Server{deps: deps, mux: http.NewServeMux(), runs: map[string]run{}, busy: map[string]bool{}}
 	s.shell = toolshell.New(toolshell.Config{
 		Brand:  toolshell.Brand{Name: deps.Name, Tagline: "local admin"},
 		Status: toolshell.Status{Label: "Local only", Detail: deps.Host},
@@ -146,6 +147,23 @@ func (s *Server) lastRun(name string) (run, bool) {
 	defer s.mu.Unlock()
 	r, ok := s.runs[name]
 	return r, ok
+}
+
+// claim marks a target as being applied; false means another apply holds it.
+func (s *Server) claim(name string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.busy[name] {
+		return false
+	}
+	s.busy[name] = true
+	return true
+}
+
+func (s *Server) release(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.busy, name)
 }
 
 func (s *Server) setRun(name string, r run) {

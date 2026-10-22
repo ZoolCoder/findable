@@ -17,6 +17,7 @@ import (
 func runDoctor(args []string, _ io.Reader, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	flags.Usage = func() { fmt.Fprint(stderr, usage()) }
 	path := flags.String("config", "", "config file")
 	asJSON := flags.Bool("json", false, "machine-readable report")
 	if err := flags.Parse(args); err != nil {

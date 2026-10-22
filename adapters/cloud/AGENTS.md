@@ -5,7 +5,7 @@ A cloud agent usually cannot reach the targets. Use it for config edits: change 
 ## How to work with the user
 
 - The site's config is `findable.yaml` (found via `-config`, `$FINDABLE_CONFIG`, `./findable.yaml`, then `~/.config/findable/findable.yaml`). Read with `findable audit -json`, `findable plan -json` and `findable doctor -json`. Fix findings in the site's source, never in the build output.
-- findable writes only robots.txt's AI crawler block and llms.txt, into `write_dir`. Plan, then apply after the user says yes to that plan. Save the plan (`findable plan -target NAME -out plan.json`) and apply exactly it (`findable apply plan.json`); apply refuses when the files moved since the plan.
+- findable writes only robots.txt's AI crawler block, llms.txt and, with llms_txt.full, llms-full.txt, into `write_dir`. Plan, then apply after the user says yes to that plan. Save the plan (`findable plan -target NAME -out plan.json`) and apply exactly it (`findable apply plan.json`); apply refuses when the files moved since the plan.
 - Never add `-yes`. The AI crawler policy, noindex choices, deploys and any outreach are the owner's decisions: explain the trade-off and ask.
 - Never cloak (different content for crawlers), never write fake reviews or ratings, never keep a filled job marked up as open.
 - MANUAL items are findings. Report each one with its fix; never add an `ignore:` entry to make one go away without the owner's decision.

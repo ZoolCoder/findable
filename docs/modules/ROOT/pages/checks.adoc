@@ -10,22 +10,30 @@ Every finding has a check id, a severity, the pages it was seen on and a fix.
 
 | `meta.title.*`, `meta.description.*` | Missing, too long or duplicated across pages.
 | `meta.h1.*`, `meta.lang.missing` | One visible `<h1>`; a `lang` on `<html>`.
-| `meta.canonical.*` | Missing, relative, or on another host.
+| `meta.canonical.*` | Missing, relative, or on another host; a canonical naming another page that does not exist, or on a live crawl answers an error or a redirect (`meta.canonical.target`); on a live crawl, a canonical other than the exact URL the page answers 200 at, trailing slash included (`meta.canonical.redirect`).
+| `meta.title.brand` | With `brand:` or `business.name`, titles that do not name the brand: a warning on locale home pages, information elsewhere.
 | `index.noindex`, `index.noindex.listed` | A page that asks not to be indexed but is not listed in `noindex:`; a noindex page in the sitemap.
-| `links.broken`, `links.orphan` | Internal links to pages that do not exist; pages nothing links to.
+| `links.broken`, `links.orphan`, `links.redirect` | Internal links to pages that do not exist; pages nothing links to; on a live crawl, links that reach their page only through a redirect.
 | `img.alt.missing`, `social.og.missing` | Images without `alt`; no share card.
 | `content.thin` | Fewer words than `min_words`.
-| `sitemap.*` | Missing or invalid (`.xml.gz` is read too); URLs on another host, unknown, not canonical; on a live crawl, URLs that answer an error, redirect or are not HTML (`sitemap.url.status`); indexable pages left out.
-| `crawl.*` | Live crawl only: pages robots.txt keeps the `findable` token out of (`crawl.skipped`), and a crawl cut short by `max_pages` (`crawl.truncated`).
+| `content.query`, `content.query.page` | Each of `queries:`: its words missing from the page's title or h1 (warning) or description (information); no page at its path.
+| `sitemap.*` | Missing or invalid (`.xml.gz` is read too); URLs on another host, unknown, not canonical; on a live crawl, URLs that answer an error, redirect or are not HTML (`sitemap.url.status`); indexable pages left out; on a live crawl, URLs that answer only after a redirect, such as one that adds a trailing slash (`sitemap.url.redirect`).
+| `redirect.temporary`, `redirect.chain` | Live crawl only: sitemap URLs that reach their page through a 302, 303 or 307; a URL that redirects more than once before a page answers, with every hop named.
+| `crawl.skipped`, `crawl.truncated` | Live crawl only: pages robots.txt keeps the `findable` token out of (`crawl.skipped`), and a crawl cut short by `max_pages` (`crawl.truncated`).
+| `crawl.shadowed` | A directory read found two files for one path (`a.html` and `a/index.html`); the page from `a.html` was checked and the other was not. Fix: keep one file per path.
+| `crawl.failed` | A page that could not be read, on a live crawl or a directory read (a page that does not parse), with the status or reason (Error; Information when the page only redirects to another page of the site). Fix: make the page answer 200 or parse, or remove the links and sitemap entries that lead to it.
 | `robots.*` | Missing, blocking everything, or not naming the sitemap.
-| `hreflang.*` | With two or more locales: missing, invalid, not reciprocal, no self link, no `x-default`.
+| `hreflang.*` | With two or more locales: missing, invalid, not reciprocal, no self link, no `x-default`; on a live crawl, alternates that redirect (`hreflang.redirect`).
 | `schema.invalid.json`, `schema.expected` | JSON-LD that does not parse; types the config requires on a path.
-| `schema.organization.fields`, `schema.localbusiness.fields` | Name, url, logo; address and telephone.
+| `schema.organization.fields`, `schema.organization.sameas`, `schema.localbusiness.fields` | Name, url, logo, and `sameAs` profiles; address and telephone.
+| `schema.website.name` | With a brand set: a locale home page without a WebSite block named for it, which Google reads for the site name in results.
 | `schema.jobposting.*` | Required and recommended fields, a `validThrough` already past (informational: it is one way Google accepts to close a job), JobPosting on a listing page.
 | `schema.breadcrumb.*` | Items and positions.
+| `schema.article.author`, `schema.article.dates` | Article, BlogPosting, NewsArticle and the other Article types: an author with a name (warning); `datePublished` present and ISO 8601 (warning); `dateModified` present (information). Who wrote a page and when are signals search engines and AI answers weigh.
+| `about.missing`, `about.people.missing` | No about page (`/about`, `/about-us`, `/team`, `/our-team`, `/company`, `/who-we-are`, `/people`, locale prefix stripped, or any page of `@type` AboutPage); an about page whose structured data names no Person, alone or as the Organization's `founder`, `employee` or `member`. Both informational.
 | `local.*` | No Organization or LocalBusiness anywhere; a business name or phone in the JSON-LD that differs from `business:`.
 | `ai.crawler.*` | robots.txt against `ai_crawlers:` for each kind of AI crawler.
-| `ai.llms.*` | llms.txt missing, malformed, or linking to pages that do not exist.
+| `ai.llms.*` | llms.txt missing, malformed, or linking to pages that do not exist; `ai.llms.full.missing` notes a missing llms-full.txt next to an llms.txt.
 |===
 
 == AI crawlers

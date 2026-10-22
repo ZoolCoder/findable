@@ -6,12 +6,14 @@ targets:
   - name: site
     provider: site
     # A built directory, checked offline. Or url: https://example.com to
-    # crawl the live site instead (path and url are exclusive).
+    # crawl the live site instead (path and url are exclusive; base_url is
+    # not allowed with url, the crawled origin is the judged one).
     path: dist
     # The public origin the built pages are served at. Required with path.
     base_url: https://example.com
-    # Where apply writes robots.txt and llms.txt: the static directory the
-    # build copies unchanged, never the build output itself.
+    # Where apply writes robots.txt, llms.txt and, with llms_txt.full,
+    # llms-full.txt: the static directory the build copies unchanged, never
+    # the build output itself.
     write_dir: public
     # max_pages: 300        # crawl limit with url
 
@@ -35,6 +37,16 @@ targets:
       name: Example Recruiting
       phones: ["+40 21 000 0000"]
 
+    # The name people search for. Titles and the home page WebSite block
+    # should carry it. Defaults to business.name.
+    # brand: Example Recruiting
+
+    # Searches a page is meant to rank for: their words should be in its
+    # title and h1, and once in its description.
+    # queries:
+    #   - {query: recruitment agency, path: /}
+    #   - {query: warehouse jobs, path: /jobs}
+
     # What robots.txt tells AI crawlers: allow, block, or any (no opinion).
     # Defaults: search allow, user allow, training any. Apply writes a block
     # for every kind set to block. This is the owner's decision.
@@ -46,9 +58,11 @@ targets:
     # llms_txt:
     #   title: Example Recruiting
     #   summary: Recruitment agency placing workers across Europe.
+    #   details: A paragraph after the summary, for what an AI reader should know first.
     #   sections:
     #     - {name: Jobs, path: /jobs/**}
     #     - {name: News, path: /news/**, optional: true}
+    #   full: true   # also write llms-full.txt: the text of every listed page
 
     # min_words: 150        # content.thin floor; -1 turns it off
     # ignore: [social.og]   # check id prefixes the owner decided to skip

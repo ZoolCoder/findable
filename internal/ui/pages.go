@@ -7,12 +7,38 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/zoolcoder/findable/internal/config"
 	"github.com/zoolcoder/findable/internal/engine"
 	"github.com/zoolcoder/findable/internal/plan"
 	"github.com/zoolcoder/toolshell"
 )
+
+func printableStatus(st engine.TargetStatus) engine.TargetStatus {
+	st.Summary, st.Error = plan.Printable(st.Summary), plan.Printable(st.Error)
+	return st
+}
+
+// printableRun returns the run with its page-derived text cleaned; the plan's
+// actions are copied, not edited, because the stored run is shared. Output
+// keeps its newlines, as a pre block shows them.
+func printableRun(rn run) run {
+	actions := make([]plan.Action, len(rn.Plan.Actions))
+	for i, a := range rn.Plan.Actions {
+		a.Detail = plan.Printable(a.Detail)
+		actions[i] = a
+	}
+	rn.Plan.Actions = actions
+	rn.Err = plan.Printable(rn.Err)
+	rn.Output = strings.Map(func(r rune) rune {
+		if r != '\n' && unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, rn.Output)
+	return rn
+}
 
 type targetRow struct {
 	config.Target
@@ -30,7 +56,7 @@ func (s *Server) targets(w http.ResponseWriter, r *http.Request) {
 	p := targetsPage{chrome: s.chrome(r, "targets")}
 	cfg, err := s.config()
 	if err != nil {
-		p.ConfigErr = err
+		p.ConfigErr = errors.New(plan.Printable(err.Error()))
 		s.render(w, "targets.html", p)
 		return
 	}
@@ -38,13 +64,13 @@ func (s *Server) targets(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	eng, err := engine.New(cfg, s.deps.Providers, nil)
 	if err != nil {
-		p.ConfigErr = err
+		p.ConfigErr = errors.New(plan.Printable(err.Error()))
 		s.render(w, "targets.html", p)
 		return
 	}
 	statuses := eng.Status(c)
 	for i, t := range cfg.Targets {
-		row := targetRow{Target: t, Status: statuses[i]}
+		row := targetRow{Target: t, Status: printableStatus(statuses[i])}
 		if last, ok := s.lastRun(t.Name); ok {
 			row.Last = &last
 		}
@@ -83,11 +109,11 @@ func (s *Server) target(w http.ResponseWriter, r *http.Request) {
 	p.Title = name
 	if eng, err := engine.New(cfg, s.deps.Providers, []string{name}); err == nil {
 		c, cancel := ctx(r)
-		p.Live = eng.Status(c)[0]
+		p.Live = printableStatus(eng.Status(c)[0])
 		cancel()
 	}
 	if last, ok := s.lastRun(name); ok {
-		p.HasRun, p.Run = true, last
+		p.HasRun, p.Run = true, printableRun(last)
 		p.Deletes = last.Plan.Destructive()
 		for _, a := range last.Plan.Actions {
 			switch a.Op {
@@ -136,6 +162,11 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 		toolshell.Back(w, r, back, "", fmt.Errorf("type %s to confirm", name))
 		return
 	}
+	if !s.claim(name) {
+		toolshell.Back(w, r, back, "", errors.New("apply already running"))
+		return
+	}
+	defer s.release(name)
 	last, ok := s.lastRun(name)
 	if !ok || last.Err != "" {
 		toolshell.Back(w, r, back, "", errors.New("plan first, then apply what you reviewed"))
