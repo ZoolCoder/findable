@@ -20,7 +20,7 @@ each action, and applies.
   command instead, where the deletion prompt runs.
 
 Every plan and apply is recorded on the *Activity* page, in a JSON lines file
-under the user data directory (`-data` changes it).
+under the user data directory (`-data` changes it). `-addr` changes the listen address from `127.0.0.1:7780`.
 
 == Local only
 

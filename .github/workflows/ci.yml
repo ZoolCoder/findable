@@ -96,7 +96,9 @@ jobs:
       # The step, not the job, is skipped without the plugin: the job is a
       # required check on main.
       - if: hashFiles('.claude-plugin/plugin.json') != ''
-        run: npx --yes @anthropic-ai/claude-code plugin validate .
+        run: npx --yes @anthropic-ai/claude-code@2.1.308 plugin validate .
+      - name: apply guard hook
+        run: sh hooks/guard-apply_test.sh
 
   release-config:
     if: github.base_ref == 'main' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -109,5 +111,5 @@ jobs:
       - if: hashFiles('.goreleaser.yaml') != ''
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
-          version: '~> v2'
+          version: v2.19.0
           args: check

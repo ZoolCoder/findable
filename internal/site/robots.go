@@ -1,6 +1,7 @@
 package site
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -32,6 +33,7 @@ func ParseRobots(body string) Robots {
 		cur       *RobotsGroup
 		lastAgent bool
 	)
+	body = strings.TrimPrefix(body, "\ufeff")
 	for line := range strings.Lines(body) {
 		line, _, _ = strings.Cut(line, "#")
 		key, val, ok := strings.Cut(line, ":")
@@ -51,12 +53,12 @@ func ParseRobots(body string) Robots {
 		case "allow", "disallow":
 			// An empty disallow allows everything: no rule at all.
 			if cur != nil && val != "" {
-				cur.Rules = append(cur.Rules, RobotsRule{Allow: key == "allow", Pattern: val})
+				cur.Rules = append(cur.Rules, RobotsRule{Allow: key == "allow", Pattern: encodeRobotsPath(val)})
 			}
+			lastAgent = false
 		case "sitemap":
 			r.Sitemaps = append(r.Sitemaps, val)
 		}
-		lastAgent = false
 	}
 	return r
 }
@@ -90,6 +92,7 @@ func (r Robots) Named(agent string) bool {
 // wins; on a tie, allow wins.
 func (r Robots) Allowed(agent, path string) bool {
 	rules, _ := r.rules(agent)
+	path = encodeRobotsPath(path)
 	best, allow := -1, true
 	for _, rule := range rules {
 		if !robotsMatch(rule.Pattern, path) {
@@ -101,6 +104,28 @@ func (r Robots) Allowed(agent, path string) bool {
 		}
 	}
 	return allow
+}
+
+// encodeRobotsPath puts a pattern or path in the form RFC 9309 matches on:
+// non-ASCII bytes percent-encoded, the hex of every escape upper case.
+func encodeRobotsPath(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c >= 0x80:
+			fmt.Fprintf(&b, "%%%02X", c)
+		case c == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]):
+			b.WriteString("%" + strings.ToUpper(s[i+1:i+3]))
+			i += 2
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
 func robotsMatch(pattern, path string) bool {
