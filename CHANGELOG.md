@@ -123,6 +123,8 @@ here with what to edit.
   targets is rejected.
 - CI pins the plugin validator and goreleaser to exact versions; the release
   checkout no longer keeps the token in git config.
+- Built with Go 1.26.10, which fixes GO-2026-6809 in `crypto/x509`
+  (compromised intermediate certificates were trusted).
 
 ## 0.1.0 - 2026-10-13
 
