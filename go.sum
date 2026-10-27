@@ -1,5 +1,5 @@
-github.com/zoolcoder/toolshell v0.3.2 h1:TOqem0/tervSqzPjQR4yxVdEVTrYmImgZ2JBm7SUtEM=
-github.com/zoolcoder/toolshell v0.3.2/go.mod h1:tPnnJqaAUnXHVjD8ghDxcuVM0lqNxW/nM6PQc18oxpU=
+github.com/zoolcoder/toolshell v0.4.0 h1:eoGCKjaLzLZp3pDUAm2Q6xk2Zc3OiE0RjvKiAXNv8ac=
+github.com/zoolcoder/toolshell v0.4.0/go.mod h1:tPnnJqaAUnXHVjD8ghDxcuVM0lqNxW/nM6PQc18oxpU=
 golang.org/x/net v0.61.0 h1:RR+6j/BTBCrggOLugxa+66R8FvoN6MHlzDlZIbN9YFw=
 golang.org/x/net v0.61.0/go.mod h1:WgDCOTH8iwtB66T4/GfI94AHo/hhdb7Hah9NDseQfiI=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
